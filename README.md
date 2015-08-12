@@ -202,6 +202,10 @@ dup [2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
 [and so on]
 ~~~
 
+## Wait almost all those examples end up in permanent loops
+
+Yes they do.
+
 
 ## tests
 
