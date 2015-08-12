@@ -40,11 +40,157 @@ In these sketches, I've shown the queue as a square-bracketed collection of toke
 
 #### some simple arithmetic
 
+```text
+[1 2 + * 3 4 - 5 6 ÷]
+1 [2 + * 3 4 - 5 6 ÷]
+1 [+ * 3 4 - 5 6 ÷ 2]
+[* 3 4 - 5 6 ÷ 2 1+_]
+* [3 4 - 5 6 ÷ 2 1+_]
+[4 - 5 6 ÷ 2 1+_ _*3]
+4 [- 5 6 ÷ 2 1+_ _*3]
+[5 6 ÷ 2 1+_ _*3 4-_]
+5 [6 ÷ 2 1+_ _*3 4-_]
+5 [÷ 2 1+_ _*3 4-_ 6]
+[2 1+_ _*3 4-_ 6 5÷_]
+2 [1+_ _*3 4-_ 6 5÷_]
+[_*3 4-_ 6 5÷_ 3]
+_*3 [4-_ 6 5÷_ 3]
+[6 5÷_ 3 4-(_*3)]
+6 [5÷_ 3 4-(_*3)]
+[3 4-(_*3) 5/6]
+3 [4-(_*3) 5/6]
+[5/6 -5]
+[repeat forever]
+```
+
 #### some more complicated interpreter-affecting instructions
+
+```text
+[1 land 6 * swap skip + jump 5 x times pause]
+1 [land 6 * swap skip + jump 5 x times pause]
+1 [6 * swap skip + jump 5 x times pause land]
+1 [* swap skip + jump 5 x times pause land 6]
+[swap skip + jump 5 x times pause land 6 1*_]
+swap [skip + jump 5 x times pause land 6 1*_]
+[+ skip jump 5 x times pause land 6 1*_]
++ [skip jump 5 x times pause land 6 1*_]
+[jump 5 x times pause land 6 1*_ +]
+jump [5 x times pause land 6 1*_ +]
+jump [x times pause land 6 1*_ + 5]
+jump [times pause land 6 1*_ + 5 x]
+jump [pause land 6 1*_ + 5 x times]
+jump [land 6 1*_ + 5 x times pause]
+[6 1*_ + 5 x times pause]
+6 [1*_ + 5 x times pause]
+[+ 5 x times pause 6]
++ [5 x times pause 6]
+[x times pause 6 _+5]
+x [times pause 6 _+5]
+[times pause 6 _+5 991]  # gets x from environment
+times [pause 6 _+5 991]
+times [6 _+5 991 pause]
+[_+5 991 pause 6_times]
+_+5 [991 pause 6_times]
+[pause 6_times 996]
+pause [6_times 996]
+[paused]
+```
 
 #### collection-gatherers
 
+```text
+[1 :) :+ :( 3 :swap 5 false :) 6 :÷]
+1 [:) :+ :( 3 :swap 5 false :) 6 :÷]
+1 [:+ :( 3 :swap 5 false :) 6 :÷ :)]
+[:( 3 :swap 5 false :) 6 :÷ :) 1+_]
+:( [3 :swap 5 false :) 6 :÷ :) 1+_]
+[:swap 5 false :) 6 :÷ :) 1+_ (3,_)]
+:swap [5 false :) 6 :÷ :) 1+_ (3,_)]
+[false 5 :) 6 :÷ :) 1+_ (3,_)]
+false [5 :) 6 :÷ :) 1+_ (3,_)]
+...
+[5 :) 6 :÷ :) 1+_ (3,_) false]  # no response
+5 [6 :÷ :) 1+_ (3,_) false :)]
+5 [:÷ :) 1+_ (3,_) false :) 6]
+[:) 1+_ (3,_) false :) 6 5÷_]
+:) [1+_ (3,_) false :) 6 5÷_]
+:) [(3,_) false :) 6 5÷_ 1+_]
+[false :) 6 5÷_ 1+_ (3)]
+false [:) 6 5÷_ 1+_ (3)]
+[:) 6 5÷_ 1+_ (3) false]
+:) [6 5÷_ 1+_ (3) false]
+[6 5÷_ 1+_ (3) false :)]
+6 [5÷_ 1+_ (3) false :)]
+[1+_ (3) false :) 5/6]
+1+_ [(3) false :) 5/6]
+1+_ [false :) 5/6 (3)]
+1+_ [:) 5/6 (3) false]
+1+_ [5/6 (3) false :)]
+[(3) false :) 11/6]
+[begin loop]
+```
+
 #### adverbs and adjectives
+
+~~~ text
+(exploring the ⥀ “don’t consume args” modifier)
+[1 dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷]
+1 [dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷]
+1 [2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷ dup]
+1 [⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷ dup 2]
+[+ ⥀ * 3 4 - 5 ⥀ 6 ÷ dup 2 1⥀]
++ [⥀ * 3 4 - 5 ⥀ 6 ÷ dup 2 1⥀]
+[* 3 4 - 5 ⥀ 6 ÷ dup 2 1⥀ +⥀]
+* [3 4 - 5 ⥀ 6 ÷ dup 2 1⥀ +⥀]
+[4 - 5 ⥀ 6 ÷ dup 2 1⥀ +⥀ _*3]
+4 [- 5 ⥀ 6 ÷ dup 2 1⥀ +⥀ _*3]
+[5 ⥀ 6 ÷ dup 2 1⥀ +⥀ _*3 4-_]
+5 [⥀ 6 ÷ dup 2 1⥀ +⥀ _*3 4-_]
+[6 ÷ dup 2 1⥀ +⥀ _*3 4-_ 5⥀]
+6 [÷ dup 2 1⥀ +⥀ _*3 4-_ 5⥀]
+[dup 2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
+dup [2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
+[2 2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
+2 [2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
+2 [1⥀ +⥀ _*3 4-_ 5⥀ 6÷_ 2]
+2 [+⥀ _*3 4-_ 5⥀ 6÷_ 2 1⥀]
+[_*3 4-_ 5⥀ 6÷_ 2 1⥀ 2+_⥀]
+[5⥀ 6÷_ 2 1⥀ 2+_⥀ (4-_)+3]
+5⥀ [6÷_ 2 1⥀ 2+_⥀ (4-_)+3]
+[2 1⥀ 2+_⥀ (4-_)+3 6/5 5⥀]
+2 [1⥀ 2+_⥀ (4-_)+3 6/5 5⥀]
+2 [2+_⥀ (4-_)+3 6/5 5⥀ 1⥀]
+[(4-_)+3 6/5 5⥀ 1⥀ 4 2+_⥀]
+[5⥀ 1⥀ 4 2+_⥀ 5.8]
+5⥀ [1⥀ 4 2+_⥀ 5.8]
+5⥀ [4 2+_⥀ 5.8 1⥀]
+5⥀ [2+_⥀ 5.8 1⥀ 4]
+[5.8 1⥀ 4 7 5⥀ 2+_⥀]
+5.8 [1⥀ 4 7 5⥀ 2+_⥀]
+5.8 [4 7 5⥀ 2+_⥀ 1⥀]
+5.8 [7 5⥀ 2+_⥀ 1⥀ 4]
+5.8 [5⥀ 2+_⥀ 1⥀ 4 7]
+5.8 [2+_⥀ 1⥀ 4 7 5⥀]
+[1⥀ 4 7 5⥀ 7.8 2+_⥀]
+1⥀ [4 7 5⥀ 7.8 2+_⥀]
+…
+1⥀ [2+_⥀ 4 7 5⥀ 7.8]
+[4 7 5⥀ 7.8 3 1⥀ 2+_⥀]
+4 [7 5⥀ 7.8 3 1⥀ 2+_⥀]
+…
+4 [2+_⥀ 7 5⥀ 7.8 3 1⥀]
+[7 5⥀ 7.8 3 1⥀ 6 2+_⥀]
+7 [5⥀ 7.8 3 1⥀ 6 2+_⥀]
+…
+7 [2+_⥀ 5⥀ 7.8 3 1⥀ 6]
+[5⥀ 7.8 3 1⥀ 6 9 2+_⥀]
+5⥀ [7.8 3 1⥀ 6 9 2+_⥀]
+…
+5⥀ [2+_⥀ 7.8 3 1⥀ 6 9]
+[7.8 3 1⥀ 6 9 7 5⥀ 2+_⥀]
+[and so on]
+~~~
+
 
 ## tests
 
