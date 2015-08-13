@@ -208,7 +208,7 @@ Yes they do.
 
 ## It gets worse
 
-Here's another sketch, with some extra magic sugar added:
+Here's another sketch, which revisits the "simple arithmetic" one above, but with some extra magic sugar added:
 
 ~~~ text
 [«num:1» «int:1» + * «float:1» «rational:1» - «odd:1» 42 ÷]
