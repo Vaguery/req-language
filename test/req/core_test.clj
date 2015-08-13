@@ -1,6 +1,7 @@
 (ns req.core-test
   (:use midje.sweet)
-  (:use [req.core]))
+  (:use [req.core])
+  )
 
 ;; queues
 
