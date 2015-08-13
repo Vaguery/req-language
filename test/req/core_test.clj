@@ -22,7 +22,13 @@
 ;; interpreter
 
 (fact "calling new-interpreter with a vector of items puts those onto the queue"
-  (:queue @(new-interpreter [2 5 8])) => (just [2 5 8])
-  (:queue @(new-interpreter [2 [3] false])) => (just [2 [3] false])
+  (:queue (new-interpreter [2 5 8])) => (just [2 5 8])
+  (:queue (new-interpreter [2 [3] false])) => (just [2 [3] false])
   )
 
+;; step: literals
+
+(fact "calling step on an interpreter containing only literals will cycle them"
+  (:queue (step (new-interpreter [false 1.2 3]))) => (just [1.2 3 false])
+  (:queue (step (step (new-interpreter [false 1.2 3])))) => (just [3 false 1.2])
+  )
