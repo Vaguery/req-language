@@ -42,5 +42,6 @@
 
 (fact "when :pop is executed, the top item on the queue is thrown away"
   (:queue (step (req-with [:pop 1 2 3 4 5]))) => (just [2 3 4 5])
+  (count (:queue (step (req-with [:pop 2])))) => 0
   (count (:queue (step (req-with [:pop])))) => 0
   )
