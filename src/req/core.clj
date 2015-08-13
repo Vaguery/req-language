@@ -9,9 +9,34 @@
 
 (defrecord Interpreter [queue])
 
-(defn new-interpreter
+(defn req-with
   "creates a new ReQinterpreter with the specified collection in its queue"
   [items] (Interpreter. (new-queue items)))
+
+
+
+;; some instructions
+
+(defn req-dup
+  "puts a copy of the top item on the queue at the tail of the queue"
+  [req]
+  (let [q (:queue req)
+        top (peek q)]
+  (if (nil? top)
+    req
+    (assoc req :queue (conj q top)))
+  ))
+
+(defn req-pop
+  "throws away the top item on the queue"
+  [req]
+  (let [q (:queue req)
+        top (peek q)]
+  (if (nil? top)
+    req
+    (assoc req :queue (pop q)))
+  ))
+
 
 ;; interpreter stepping
 
@@ -20,6 +45,9 @@
   [req]
   (let [top (peek (:queue req))
         tail (pop (:queue req))]
-  (assoc req :queue (conj tail top))
-  
+    (condp = top
+      :dup (req-dup (req-with tail))
+      :pop (req-pop (req-with tail))
+      (assoc req :queue (conj tail top)))
   ))
+

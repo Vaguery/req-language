@@ -21,14 +21,26 @@
 
 ;; interpreter
 
-(fact "calling new-interpreter with a vector of items puts those onto the queue"
-  (:queue (new-interpreter [2 5 8])) => (just [2 5 8])
-  (:queue (new-interpreter [2 [3] false])) => (just [2 [3] false])
+(fact "calling req-with with a vector of items puts those onto the queue"
+  (:queue (req-with [2 5 8])) => (just [2 5 8])
+  (:queue (req-with [2 [3] false])) => (just [2 [3] false])
   )
 
 ;; step: literals
 
 (fact "calling step on an interpreter containing only literals will cycle them"
-  (:queue (step (new-interpreter [false 1.2 3]))) => (just [1.2 3 false])
-  (:queue (step (step (new-interpreter [false 1.2 3])))) => (just [3 false 1.2])
+  (:queue (step (req-with [false 1.2 3]))) => (just [1.2 3 false])
+  (:queue (step (step (req-with [false 1.2 3])))) => (just [3 false 1.2])
+  )
+
+;; step: imperatives
+
+(fact "when :dup is executed, the top item on the queue is doubled and sent to the tail"
+  (:queue (step (req-with [:dup 1.2 3]))) => (just [1.2 3 1.2])
+  (count (:queue (step (req-with [:dup])))) => 0
+  )
+
+(fact "when :pop is executed, the top item on the queue is thrown away"
+  (:queue (step (req-with [:pop 1 2 3 4 5]))) => (just [2 3 4 5])
+  (count (:queue (step (req-with [:pop])))) => 0
   )
