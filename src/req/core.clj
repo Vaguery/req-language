@@ -97,16 +97,17 @@
   "pops the top item from a ReQinterpreter and updates the interpreter state"
   [req]
   (let [top (peek (:queue req))
-        tail (pop (:queue req))]
+        tail (pop (:queue req))
+        popped-state (req-with tail)]
     (condp = top
-      :archive (req-archive (req-with tail))
-      :dup (req-dup (req-with tail))
-      :flush (req-flush (req-with tail))
-      :next (req-next (req-with tail))
-      :reverse (req-reverse (req-with tail))
-      :swap (req-swap (req-with tail))
-      :pop (req-pop (req-with tail))
-      :prev (req-prev (req-with tail))
+      :archive (req-archive popped-state)
+      :dup (req-dup popped-state)
+      :flush (req-flush popped-state)
+      :next (req-next popped-state)
+      :reverse (req-reverse popped-state)
+      :swap (req-swap popped-state)
+      :pop (req-pop popped-state)
+      :prev (req-prev popped-state)
       (assoc req :queue (conj tail top)))
   ))
 
