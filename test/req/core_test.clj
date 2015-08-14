@@ -44,3 +44,25 @@
   (:queue (step (req-with [:pop 1 2 3 4 5]))) => (just [2 3 4 5])
   (count (:queue (step (req-with [:pop])))) => 0
   )
+
+(fact "when :swap is executed, the top two items on the queue are switched (and sent to the end)"
+  (:queue (step (req-with [:swap 1 2 3 4 5]))) => (just [3 4 5 2 1])
+  (:queue (step (req-with [:swap 1 2]))) => (just [2 1])
+  (:queue (step (req-with [:swap 1]))) => (just [1])
+  (:queue (step (req-with [:swap]))) => (just [])
+  )
+
+(fact "when :archive is executed, the entire queue is duplicated at its own tail"
+  (:queue (step (req-with [:archive 1 2 3 4 5]))) => (just [1 2 3 4 5 1 2 3 4 5])
+  (:queue (step (req-with [:archive]))) => (just [])
+  )
+
+(fact "when :reverse is executed, the entire queue is flipped head-to-tail"
+  (:queue (step (req-with [:reverse 1 2 3 4 5]))) => (just [5 4 3 2 1])
+  (:queue (step (req-with [:reverse]))) => (just [])
+  )
+
+(fact "when :flush is executed, the entire queue is emptied"
+  (:queue (step (req-with [:flush 1 2 3 4 5]))) => (just [])
+  (:queue (step (req-with [:flush]))) => (just [])
+  )
