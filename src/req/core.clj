@@ -42,6 +42,15 @@
   (req-with [])
   )
 
+(defn req-next
+  "sends the top item to the tail of the queue"
+  [req]
+  (let [q (:queue req)
+        top (peek q)]
+  (if (nil? top)
+    req
+    (assoc req :queue (conj (pop q) top)))
+  ))
 
 (defn req-pop
   "throws away the top item on the queue"
@@ -52,6 +61,18 @@
     req
     (assoc req :queue (pop q)))
   ))
+
+
+(defn req-prev
+  "sends the tail item to the head of the queue"
+  [req]
+  (let [q (:queue req)
+        top (peek q)]
+  (if (nil? top)
+    req
+    (req-with (cons (last q) (drop-last q))))
+  ))
+
 
 (defn req-reverse
   "reverses the queue order"
@@ -81,9 +102,11 @@
       :archive (req-archive (req-with tail))
       :dup (req-dup (req-with tail))
       :flush (req-flush (req-with tail))
+      :next (req-next (req-with tail))
       :reverse (req-reverse (req-with tail))
       :swap (req-swap (req-with tail))
       :pop (req-pop (req-with tail))
+      :prev (req-prev (req-with tail))
       (assoc req :queue (conj tail top)))
   ))
 

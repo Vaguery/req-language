@@ -67,3 +67,15 @@
   (:queue (step (req-with [:flush 1 2 3 4 5]))) => (just [])
   (:queue (step (req-with [:flush]))) => (just [])
   )
+
+(fact "when :next is executed, the top item is sent to the tail"
+  (:queue (step (req-with [:next 1 2 3 4 5]))) => (just [2 3 4 5 1])
+  (:queue (step (req-with [:next 1]))) => (just [1])
+  (:queue (step (req-with [:next]))) => (just [])
+  )
+
+(fact "when :prev is executed, the tail item is sent to the head"
+  (:queue (step (req-with [:prev 1 2 3 4 5]))) => (just [5 1 2 3 4])
+  (:queue (step (req-with [:prev 1]))) => (just [1])
+  (:queue (step (req-with [:prev]))) => (just [])
+  )
