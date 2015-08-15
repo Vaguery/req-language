@@ -105,7 +105,7 @@
   (keys wants) => (just [:arg2 :arg3])
   (keys (filter #((second %) 6.2) wants)) => (just [:arg2])
   (keys (filter #((second %) false) wants)) => nil
-  (keys (filter #((second %) 6.2) (:wants adder))) => (just [:rhs])
+  (keys (filter #((second %) 6.2) (:wants weird-partial-thing))) => (just [:num-1])
   )
 
 (fact "a handshake function is possible"
