@@ -86,11 +86,12 @@
 
 ;; closures
 
-(defrecord Qlosure [wants bindings next-stage])
+(defrecord Qlosure [as-str wants bindings next-stage])
 
 (def adder
   (let [bindings {:lhs 77}]
     (Qlosure.
+      "77 + «num»"
       {:rhs number?}
       bindings
       (partial + (:lhs bindings))
@@ -129,7 +130,24 @@
   (ways-to-use-this-thing adder "foo") => (just [])
   )
 
-
-
 (fact "a qlosure can do this thing"
   (apply (:next-stage adder) [11]) => 88)
+
+
+(defmulti req-plus class)
+(defmethod req-plus java.lang.Long [i] :i-haz-a-integer)
+(defmethod req-plus java.lang.Double [f] :i-haz-a-float)
+(defmethod req-plus :default [x] :not-a-thing-I-like)
+
+(fact "Multimethods can recognize stuff"
+  (req-plus 8) => :i-haz-a-integer
+  (req-plus 2.3) => :i-haz-a-float
+  (req-plus false) => :not-a-thing-I-like
+  )
+
+(fact "understanding isa?"
+  (isa? java.lang.Long java.lang.Number) => true
+  (isa? java.lang.Long java.lang.Boolean) => false
+  (isa? java.lang.Long java.lang.Object) => true
+  (isa? java.lang.Long java.lang.Double) => false
+  )
