@@ -203,6 +203,13 @@ false [(3,«any»)->«list» 5 ) 6 ÷ ) 1+«num»->«num»] ;; the false is cons
 ;; and so on...
 ~~~
 
+Things to notice about this sketch:
+
+- the long nested closure never gets to the hot seat; it is always consumed by a preceding closure
+- a "permanent loop" may not be a fixed attractor
+- there should be a "mortal" instruction which wipes out the immortality of its argument
+- there is an equivalent countdown timer operator, like `times` in the previous example, which only persists a fixed number of times
+
 ## Wait almost all those examples end up in permanent loops
 
 Yes they do.
