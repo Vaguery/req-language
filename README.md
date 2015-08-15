@@ -25,20 +25,12 @@ I haven't settled on an order for filling in the arguments of a closure yet, but
 
 ### Some examples
 
-- a number addresses certain functions and produces a partial or complete result
-  - `77`∘`+` -> `77+«num»->«num»`
-  - `77`∘`neg` -> `-77`
-  - `0`∘`sin` -> `0.0`
 - some functions address a number to produce a partial or complete result
-  - `+`∘`77` -> `«num»+77->«num»`
+  - `+`∘`77` -> `77+«num»->«num»`
   - `neg`∘`77` -> `-77`
   - `cos`∘`π` -> `-1`
-- a collection can address functions which apply to it
-  - `(1 2 3)`∘`shatter` -> `1`,`2`,`3` (three results)
-  - `[2 4 6]`∘`contain?` -> `[2 4 6].contain?(«any»)->«bool»`
-  - `{"a" "b" "b"}`∘`union` -> `{"a" "b" "b"}.union(«set»)->«set»`
 - some functions can also address collections to produce a partial or complete result
-  - `+`∘`(7 1 2)` -> `«seq»+(7 1 2)`
+  - `+`∘`(7 1 2)` -> `(7 1 2)+«seq»`
   - `reverse`∘`[2 1 0]` -> `[0 1 2]`
   - `map`∘`(1..99)` -> `map(«num»->«T»,(1..99)->«(T)»`
 
@@ -51,93 +43,97 @@ In these sketches, I've shown the queue as a square-bracketed collection of toke
 #### some simple arithmetic
 
 ```text
-[1 2 + * 3 4 - 5 6 ÷]
-1 [2 + * 3 4 - 5 6 ÷]
-1 [+ * 3 4 - 5 6 ÷ 2]
-[* 3 4 - 5 6 ÷ 2 1+«num»->«num»]
-* [3 4 - 5 6 ÷ 2 1+«num»->«num»]
-[4 - 5 6 ÷ 2 1+«num»->«num» «num»*3->«num»]
-4 [- 5 6 ÷ 2 1+«num»->«num» «num»*3->«num»]
-[5 6 ÷ 2 1+«num»->«num» «num»*3->«num» 4-«num»->«num»]
-5 [6 ÷ 2 1+«num»->«num» «num»*3->«num» 4-«num»->«num»]
-5 [÷ 2 1+«num»->«num» «num»*3->«num» 4-«num»->«num» 6]
-[2 1+«num»->«num» «num»*3->«num» 4-«num»->«num» 6 5÷«num»->«num»]
-2 [1+«num»->«num» «num»*3->«num» 4-«num»->«num» 6 5÷«num»->«num»]
-[«num»*3->«num» 4-«num»->«num» 6 5÷«num»->«num» 3]
-«num»*3->«num» [4-«num»->«num» 6 5÷«num»->«num» 3]
-[6 5÷«num»->«num» 3 4-(«num»*3)->«num»]
-6 [5÷«num»->«num» 3 4-(«num»*3)->«num»]
-[3 4-(«num»*3)->«num» 5/6]
-3 [4-(«num»*3)->«num» 5/6]
-[5/6 -5]
-[repeat forever]
+[1 2 + * 3 4 - 5 6 ÷] 
+1 [2 + * 3 4 - 5 6 ÷] ;; 1 is in the hot seat
+1 [+ * 3 4 - 5 6 ÷ 2] ;; 1 does not want 2, nor vice versa
+[* 3 4 - 5 6 ÷ 2 1+«num»->«num»] ;; does not want +, but + wants 1; a closure results
+* [3 4 - 5 6 ÷ 2 1+«num»->«num»] ;; * wants 3
+[4 - 5 6 ÷ 2 1+«num»->«num» 3*«num»->«num»] ;; a closure results
+4 [- 5 6 ÷ 2 1+«num»->«num» 3*«num»->«num»] ;; 4 does not want -, but - wants 4
+[5 6 ÷ 2 1+«num»->«num» 3*«num»->«num» 4-«num»->«num»] ;; a closure results
+5 [6 ÷ 2 1+«num»->«num» 3*«num»->«num» 4-«num»->«num»] ;; 5 and 6 don't care
+5 [÷ 2 1+«num»->«num» 3*«num»->«num» 4-«num»->«num» 6] ;; ÷ likes 5 though
+[2 1+«num»->«num» 3*«num»->«num» 4-«num»->«num» 6 5÷«num»->«num»] ;; closure!
+2 [1+«num»->«num» 3*«num»->«num» 4-«num»->«num» 6 5÷«num»->«num»] ;; this closure loves 2
+[3*«num»->«num» 4-«num»->«num» 6 5÷«num»->«num» 3] ;; they have a literal baby
+3*«num»->«num» [4-«num»->«num» 6 5÷«num»->«num» 3] ;; this closure likes that one
+[6 5÷«num»->«num» 3 3*(4-«num»)->«num»] ;; the result is their composition
+6 [5÷«num»->«num» 3 3*(4-«num»)->«num»] ;; the closure wants the 6
+[3 3*(4-«num»)->«num» 5/6] ;; they have a result
+3 [3*(4-«num»)->«num» 5/6] ;; the closure likes the 3
+[5/6 3] ;; literally don't care
+[3 5/6]
+[cycles forever]
 ```
 
 #### some more complicated interpreter-affecting instructions
 
 ```text
 [1 land 6 * swap skip + jump 5 x times pause]
-1 [land 6 * swap skip + jump 5 x times pause]
-1 [6 * swap skip + jump 5 x times pause land]
-1 [* swap skip + jump 5 x times pause land 6]
-[swap skip + jump 5 x times pause land 6 1*«num»->«num»]
-swap [skip + jump 5 x times pause land 6 1*«num»->«num»]
-[+ skip jump 5 x times pause land 6 1*«num»->«num»]
-+ [skip jump 5 x times pause land 6 1*«num»->«num»]
-[jump 5 x times pause land 6 1*«num»->«num» +]
-jump [5 x times pause land 6 1*«num»->«num» +]
+1 [land 6 * swap skip + jump 5 x times pause] ;; "land" is a place-holder
+1 [6 * swap skip + jump 5 x times pause land] ;; literals don't care for each other
+1 [* swap skip + jump 5 x times pause land 6] ;; * wants 1
+[swap skip + jump 5 x times pause land 6 1*«num»->«num»] ;; a closure
+swap [skip + jump 5 x times pause land 6 1*«num»->«num»] ;; swap talks to the queue
+[+ skip jump 5 x times pause land 6 1*«num»->«num»] ;; the items are actually swapped
++ [skip jump 5 x times pause land 6 1*«num»->«num»] ;; "skip" causes + to move on without having an effect
+[jump 5 x times pause land 6 1*«num»->«num» +] ;; skip was consumed
+jump [5 x times pause land 6 1*«num»->«num» +] ;; "jump" is looking for "land"
 jump [x times pause land 6 1*«num»->«num» + 5]
 jump [times pause land 6 1*«num»->«num» + 5 x]
 jump [pause land 6 1*«num»->«num» + 5 x times]
-jump [land 6 1*«num»->«num» + 5 x times pause]
-[6 1*«num»->«num» + 5 x times pause]
-6 [1*«num»->«num» + 5 x times pause]
+jump [land 6 1*«num»->«num» + 5 x times pause] ;; jump finds "land"
+[6 1*«num»->«num» + 5 x times pause] ;; execution resumes where that leaves us
+6 [1*«num»->«num» + 5 x times pause] ;; the closure eats the literal
 [+ 5 x times pause 6]
 + [5 x times pause 6]
-[x times pause 6 «num»+5->«num»]
-x [times pause 6 «num»+5->«num»]
-[times pause 6 «num»+5->«num» 991]  # gets x from environment
-times [pause 6 «num»+5->«num» 991]
-times [6 «num»+5->«num» 991 pause]
-[«num»+5->«num» 991 pause 6_times]
-«num»+5->«num» [991 pause 6_times]
-[pause 6_times 996]
-pause [6_times 996]
-[paused]
+[x times pause 6 5+«num»->«num»]
+x [times pause 6 5+«num»->«num»]
+[times pause 6 5+«num»->«num» 991]  # gets x from environment; x=991
+times [pause 6 5+«num»->«num» 991] ;; times looks for a non-negative integer
+times [6 5+«num»->«num» 991 pause] ;; times consumes the integer 6
+[5+«num»->«num» 991 pause 6_times] ;; (every time times_x is executed, it counts down; in the end it becomes a "pause")
+5+«num»->«num» [991 pause 6_times] ;; the closure is up next
+[pause 6_times 996] ;; the closure eats 991
+pause [6_times 996] ;; pause arrives
+[paused] ;; we wait for something to change things, or forever
 ```
 
 #### collection-gatherers
 
 ```text
 [1 ) + ( 3 swap 5 false ) 6 ÷]
-1 [) + ( 3 swap 5 false ) 6 ÷]
-1 [+ ( 3 swap 5 false ) 6 ÷ )]
-[( 3 swap 5 false ) 6 ÷ ) 1+«num»->«num»]
-( [3 swap 5 false ) 6 ÷ ) 1+«num»->«num»]
-[swap 5 false ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»]
-swap [5 false ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»]
+1 [) + ( 3 swap 5 false ) 6 ÷] ;; the ")" wants an open gatherer to close
+1 [+ ( 3 swap 5 false ) 6 ÷ )] ;; + wants 1
+[( 3 swap 5 false ) 6 ÷ ) 1+«num»->«num»] ;; closure
+( [3 swap 5 false ) 6 ÷ ) 1+«num»->«num»] ;; a gatherer is formed, consuming 3
+[swap 5 false ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»] ;; the gatherer will collect anything at all, even instructions that would affect it, if it sees them first
+swap [5 false ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»] ;; swap does its thing
 [false 5 ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»]
-false [5 ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»]
+false [5 ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list»] 
 ...
-[5 ) 6 ÷ ) 1+«num»->«num» (3,«any»)->«list» false]  # no response
-5 [6 ÷ ) 1+«num»->«num» (3,«any»)->«list» false )]
-5 [÷ ) 1+«num»->«num» (3,«any»)->«list» false ) 6]
-[) 1+«num»->«num» (3,«any»)->«list» false ) 6 5÷«num»->«num»]
-) [1+«num»->«num» (3,«any»)->«list» false ) 6 5÷«num»->«num»]
-) [(3,«any»)->«list» false ) 6 5÷«num»->«num» 1+«num»->«num»]
-[false ) 6 5÷«num»->«num» 1+«num»->«num» (3)]     # collector is closed
-false [) 6 5÷«num»->«num» 1+«num»->«num» (3)]
-[) 6 5÷«num»->«num» 1+«num»->«num» (3) false]
-) [6 5÷«num»->«num» 1+«num»->«num» (3) false]
-[6 5÷«num»->«num» 1+«num»->«num» (3) false )]
-6 [5÷«num»->«num» 1+«num»->«num» (3) false )]
-[1+«num»->«num» (3) false ) 5/6]
-1+«num»->«num» [(3) false ) 5/6]
-1+«num»->«num» [false ) 5/6 (3)]
-1+«num»->«num» [) 5/6 (3) false]
-1+«num»->«num» [5/6 (3) false )]
-[(3) false ) 11/6]
-[begin loop]
+false [(3,«any»)->«list» 5 ) 6 ÷ ) 1+«num»->«num»] ;; the false is consumed by the gatherer
+[5 ) 6 ÷ ) 1+«num»->«num» (3,false,«any»)->«list»]
+5 [) 6 ÷ ) 1+«num»->«num» (3,false,«any»)->«list»]
+5 [6 ÷ ) 1+«num»->«num» (3,false,«any»)->«list» )]
+5 [÷ ) 1+«num»->«num» (3,false,«any»)->«list» ) 6]
+[) 1+«num»->«num» (3,false,«any»)->«list» ) 6 5÷«num»->«num»]
+) [1+«num»->«num» (3,false,«any»)->«list» ) 6 5÷«num»->«num»]
+) [(3,false,«any»)->«list» ) 6 5÷«num»->«num» 1+«num»->«num»]
+[ ) 6 5÷«num»->«num» 1+«num»->«num» (3,false)] ;; the closer closes the gatherer
+) [6 5÷«num»->«num» 1+«num»->«num» (3,false)]
+...
+[6 5÷«num»->«num» 1+«num»->«num» (3,false) )] ;; this closer has no interactions
+6 [5÷«num»->«num» 1+«num»->«num» (3,false) )]
+[1+«num»->«num» (3,false) ) 5/6]
+1+«num»->«num» [(3,false) ) 5/6]
+1+«num»->«num» [) 5/6 (3,false)]
+1+«num»->«num» [5/6 (3,false) )]
+[(3,false) ) 11/6]
+[) 11/6 (3,false)]
+[11/6 (3,false) )]
+[(3,false) ) 11/6]
+;; cycles forever
 ```
 
 #### adverbs and adjectives
@@ -146,60 +142,65 @@ false [) 6 5÷«num»->«num» 1+«num»->«num» (3)]
 # (exploring the ⥀ “don’t consume args” modifier)
 # type hints are hidden
 [1 dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷]
-1 [dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷]
-1 [2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷ dup]
-1 [⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷ dup 2]
-[+ ⥀ * 3 4 - 5 ⥀ 6 ÷ dup 2 1⥀]
-+ [⥀ * 3 4 - 5 ⥀ 6 ÷ dup 2 1⥀]
-[* 3 4 - 5 ⥀ 6 ÷ dup 2 1⥀ +⥀]
-* [3 4 - 5 ⥀ 6 ÷ dup 2 1⥀ +⥀]
-[4 - 5 ⥀ 6 ÷ dup 2 1⥀ +⥀ _*3]
-4 [- 5 ⥀ 6 ÷ dup 2 1⥀ +⥀ _*3]
-[5 ⥀ 6 ÷ dup 2 1⥀ +⥀ _*3 4-_]
-5 [⥀ 6 ÷ dup 2 1⥀ +⥀ _*3 4-_]
-[6 ÷ dup 2 1⥀ +⥀ _*3 4-_ 5⥀]
-6 [÷ dup 2 1⥀ +⥀ _*3 4-_ 5⥀]
-[dup 2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
-dup [2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
-[2 2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
-2 [2 1⥀ +⥀ _*3 4-_ 5⥀ 6÷_]
-2 [1⥀ +⥀ _*3 4-_ 5⥀ 6÷_ 2]
-2 [+⥀ _*3 4-_ 5⥀ 6÷_ 2 1⥀]
-[_*3 4-_ 5⥀ 6÷_ 2 1⥀ 2+_⥀]
-[5⥀ 6÷_ 2 1⥀ 2+_⥀ (4-_)+3]
-5⥀ [6÷_ 2 1⥀ 2+_⥀ (4-_)+3]
-[2 1⥀ 2+_⥀ (4-_)+3 6/5 5⥀]
-2 [1⥀ 2+_⥀ (4-_)+3 6/5 5⥀]
-2 [2+_⥀ (4-_)+3 6/5 5⥀ 1⥀]
-[(4-_)+3 6/5 5⥀ 1⥀ 4 2+_⥀]
-[5⥀ 1⥀ 4 2+_⥀ 5.8]
-5⥀ [1⥀ 4 2+_⥀ 5.8]
-5⥀ [4 2+_⥀ 5.8 1⥀]
-5⥀ [2+_⥀ 5.8 1⥀ 4]
-[5.8 1⥀ 4 7 5⥀ 2+_⥀]
-5.8 [1⥀ 4 7 5⥀ 2+_⥀]
-5.8 [4 7 5⥀ 2+_⥀ 1⥀]
-5.8 [7 5⥀ 2+_⥀ 1⥀ 4]
-5.8 [5⥀ 2+_⥀ 1⥀ 4 7]
-5.8 [2+_⥀ 1⥀ 4 7 5⥀]
-[1⥀ 4 7 5⥀ 7.8 2+_⥀]
-1⥀ [4 7 5⥀ 7.8 2+_⥀]
-…
-1⥀ [2+_⥀ 4 7 5⥀ 7.8]
-[4 7 5⥀ 7.8 3 1⥀ 2+_⥀]
-4 [7 5⥀ 7.8 3 1⥀ 2+_⥀]
-…
-4 [2+_⥀ 7 5⥀ 7.8 3 1⥀]
-[7 5⥀ 7.8 3 1⥀ 6 2+_⥀]
-7 [5⥀ 7.8 3 1⥀ 6 2+_⥀]
-…
-7 [2+_⥀ 5⥀ 7.8 3 1⥀ 6]
-[5⥀ 7.8 3 1⥀ 6 9 2+_⥀]
-5⥀ [7.8 3 1⥀ 6 9 2+_⥀]
-…
-5⥀ [2+_⥀ 7.8 3 1⥀ 6 9]
-[7.8 3 1⥀ 6 9 7 5⥀ 2+_⥀]
-[and so on]
+1 [dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷] ;; 1 is duped
+[2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷ 1 1]
+2 [⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷ 1 1]
+[+ ⥀ * 3 4 - 5 ⥀ 6 ÷ 1 1 2⥀] ;; the 2 becomes immortal
+[* 3 4 - 5 ⥀ 6 ÷ 1 1 2⥀ +⥀] ;; the + becomes immortal
+* [3 4 - 5 ⥀ 6 ÷ 1 1 2⥀ +⥀]
+[4 - 5 ⥀ 6 ÷ 1 1 2⥀ +⥀ 3*«num»->«num»]
+4 [- 5 ⥀ 6 ÷ 1 1 2⥀ +⥀ 3*«num»->«num»]
+[5 ⥀ 6 ÷ 1 1 2⥀ +⥀ 3*«num»->«num» 4-«num»->«num»]
+5 [⥀ 6 ÷ 1 1 2⥀ +⥀ 3*«num»->«num» 4-«num»->«num»]
+[6 ÷ 1 1 2⥀ +⥀ 3*«num»->«num» 4-«num»->«num» 5⥀]
+6 [÷ 1 1 2⥀ +⥀ 3*«num»->«num» 4-«num»->«num» 5⥀]
+[1 1 2⥀ +⥀ 3*«num»->«num» 4-«num»->«num» 5⥀ 6÷«num»->«num»]
+1 [1 2⥀ +⥀ 3*«num»->«num» 4-«num»->«num» 5⥀ 6÷«num»->«num»]
+1 [2⥀ +⥀ 3*«num»->«num» 4-«num»->«num» 5⥀ 6÷«num»->«num» 1]
+1 [+⥀ 3*«num»->«num» 4-«num»->«num» 5⥀ 6÷«num»->«num» 1 2⥀]
+[3*«num»->«num» 4-«num»->«num» 5⥀ 6÷«num»->«num» 1 2⥀ +⥀ 1+«num»->«num»] ;; note the +⥀ remains as well
+3*«num»->«num» [4-«num»->«num» 5⥀ 6÷«num»->«num» 1 2⥀ +⥀ 1+«num»->«num»]
+[5⥀ 6÷«num»->«num» 1 2⥀ +⥀ 1+«num»->«num» 3*(4-«num»)->«num» ]
+5⥀ [6÷«num»->«num» 1 2⥀ +⥀ 1+«num»->«num» 3*(4-«num»)->«num» ]
+[1 2⥀ +⥀ 1+«num»->«num» 3*(4-«num»)->«num» 5⥀ 6/5] ;; keep immortal arguments and results
+1 [2⥀ +⥀ 1+«num»->«num» 3*(4-«num»)->«num» 5⥀ 6/5]
+1 [+⥀ 1+«num»->«num» 3*(4-«num»)->«num» 5⥀ 6/5 2⥀]
+[1+«num»->«num» 3*(4-«num»)->«num» 5⥀ 6/5 2⥀ +⥀ 1+«num»->«num»]
+1+«num»->«num» [3*(4-«num»)->«num» 5⥀ 6/5 2⥀ +⥀ 1+«num»->«num»]
+[5⥀ 6/5 2⥀ +⥀ 1+«num»->«num» 1+(3*(4-«num»))->«num»]
+5⥀ [6/5 2⥀ +⥀ 1+«num»->«num» 1+(3*(4-«num»))->«num»]
+5⥀ [2⥀ +⥀ 1+«num»->«num» 1+(3*(4-«num»))->«num» 6/5]
+5⥀ [+⥀ 1+«num»->«num» 1+(3*(4-«num»))->«num» 6/5 2⥀]
+[1+«num»->«num» 1+(3*(4-«num»))->«num» 6/5 2⥀ 5⥀ +⥀ 5+«num»->«num»]
+1+«num»->«num» [1+(3*(4-«num»))->«num» 6/5 2⥀ 5⥀ +⥀ 5+«num»->«num»]
+[6/5 2⥀ 5⥀ +⥀ 5+«num»->«num» 1+(1+(3*(4-«num»)))->«num»]
+6/5 [2⥀ 5⥀ +⥀ 5+«num»->«num» 1+(1+(3*(4-«num»)))->«num»]
+6/5 [5⥀ +⥀ 5+«num»->«num» 1+(1+(3*(4-«num»)))->«num» 2⥀]
+6/5 [+⥀ 5+«num»->«num» 1+(1+(3*(4-«num»)))->«num» 2⥀ 5⥀]
+[5+«num»->«num» 1+(1+(3*(4-«num»)))->«num» 2⥀ 5⥀ +⥀ 6/5+«num»->«num»]
+5+«num»->«num» [1+(1+(3*(4-«num»)))->«num» 2⥀ 5⥀ +⥀ 6/5+«num»->«num»]
+[2⥀ 5⥀ +⥀ 6/5+«num»->«num» 5+(1+(1+(3*(4-«num»))))->«num»]
+2⥀ [5⥀ +⥀ 6/5+«num»->«num» 5+(1+(1+(3*(4-«num»))))->«num»]
+2⥀ [+⥀ 6/5+«num»->«num» 5+(1+(1+(3*(4-«num»))))->«num» 5⥀]
+[6/5+«num»->«num» 5+(1+(1+(3*(4-«num»))))->«num» 5⥀ 2⥀ +⥀ 2+«num»->«num»]
+6/5+«num»->«num» [5+(1+(1+(3*(4-«num»))))->«num» 5⥀ 2⥀ +⥀ 2+«num»->«num»]
+[5⥀ 2⥀ +⥀ 2+«num»->«num» 6/5+(5+(1+(1+(3*(4-«num»)))))->«num»]
+5⥀ [2⥀ +⥀ 2+«num»->«num» 6/5+(5+(1+(1+(3*(4-«num»)))))->«num»]
+5⥀ [+⥀ 2+«num»->«num» 6/5+(5+(1+(1+(3*(4-«num»)))))->«num» 2⥀]
+[2+«num»->«num» 6/5+(5+(1+(1+(3*(4-«num»)))))->«num» 2⥀ 5⥀ +⥀ 5+«num»->«num»]
+2+«num»->«num» [6/5+(5+(1+(1+(3*(4-«num»)))))->«num» 2⥀ 5⥀ +⥀ 5+«num»->«num»]
+[2⥀ 5⥀ +⥀ 5+«num»->«num» 2+6/5+(5+(1+(1+(3*(4-«num»)))))->«num»]
+2⥀ [5⥀ +⥀ 5+«num»->«num» 2+6/5+(5+(1+(1+(3*(4-«num»)))))->«num»]
+2⥀ [+⥀ 5+«num»->«num» 2+6/5+(5+(1+(1+(3*(4-«num»)))))->«num» 5⥀]
+[5+«num»->«num» 2+6/5+(5+(1+(1+(3*(4-«num»)))))->«num» 5⥀ 2⥀ +⥀ 2+«num»->«num»]
+5+«num»->«num» [2+6/5+(5+(1+(1+(3*(4-«num»)))))->«num» 5⥀ 2⥀ +⥀ 2+«num»->«num»]
+[5⥀ 2⥀ +⥀ 2+«num»->«num» 5+(2+6/5+(5+(1+(1+(3*(4-«num»))))))->«num»]
+5⥀ [2⥀ +⥀ 2+«num»->«num» 5+(2+6/5+(5+(1+(1+(3*(4-«num»))))))->«num»]
+5⥀ [+⥀ 2+«num»->«num» 5+(2+6/5+(5+(1+(1+(3*(4-«num»))))))->«num» 2⥀]
+[2+«num»->«num» 5+(2+6/5+(5+(1+(1+(3*(4-«num»))))))->«num» 2⥀ 5⥀ +⥀ 5+«num»->«num»]
+2+«num»->«num» [5+(2+6/5+(5+(1+(1+(3*(4-«num»))))))->«num» 2⥀ 5⥀ +⥀ 5+«num»->«num»]
+[2⥀ 5⥀ +⥀ 5+«num»->«num» 2+5+(2+6/5+(5+(1+(1+(3*(4-«num»))))))->«num»]
+;; and so on...
 ~~~
 
 ## Wait almost all those examples end up in permanent loops
