@@ -88,13 +88,15 @@
 
 (defrecord Qlosure [as-str wants bindings next-stage])
 
-(def adder
+(defn boolean? [thing] (= (type thing) java.lang.Boolean))
+
+(def weird-partial-thing
   (let [bindings {:lhs 77}]
     (Qlosure.
-      "77 + «num»"
-      {:rhs number?}
+      "(«bool:1» ? (77+«num:1») : «num:2»)"
+      {:bool-1 boolean?, :num-1 number?, :bool-2 boolean?}
       bindings
-      (partial + (:lhs bindings))
+      :i-am-a-placeholder-for-a-complicated-qlosure
     )))
 
 (def wants {:arg2 number? :arg3 integer?})
@@ -106,6 +108,12 @@
   (keys (filter #((second %) 6.2) (:wants adder))) => (just [:rhs])
   )
 
+(fact "a handshake function is possible"
+  (keys (:wants weird-partial-thing)) => (just [:bool-1 :num-1 :bool-2])
+  (keys (filter #((second %) 6.2) (:wants weird-partial-thing))) => (just [:num-1])
+  (keys (filter #((second %) false) (:wants weird-partial-thing))) => (just [:bool-1 :bool-2])
+  )
+
 (defn can-use-this-thing? [qlosure item]
   (let [w (:wants qlosure)]
     (some? (keys (filter #((second %) item) w)))
@@ -113,9 +121,10 @@
   )
 
 (fact "a handshake function can be used"
-  (can-use-this-thing? adder 6.2) => true
-  (can-use-this-thing? adder [1 2 3]) => false
-  (can-use-this-thing? adder "foo") => false
+  (can-use-this-thing? weird-partial-thing 6.2) => true
+  (can-use-this-thing? weird-partial-thing false) => true
+  (can-use-this-thing? weird-partial-thing [1 2 3]) => false
+  (can-use-this-thing? weird-partial-thing "foo") => false
   )
 
 (defn ways-to-use-this-thing [qlosure item]
@@ -124,32 +133,37 @@
     )
   )
 
-(fact "a wants list can be produced"
-  (ways-to-use-this-thing adder 6.2) => (just [:rhs])
-  (ways-to-use-this-thing adder [1 2 3]) => (just [])
-  (ways-to-use-this-thing adder "foo") => (just [])
+(defn how-to-use-this-thing [qlosure item]
+  (first (ways-to-use-this-thing qlosure item)))
+
+
+(fact "I can say what particular argument matches first"
+  (how-to-use-this-thing weird-partial-thing 6.2) => :num-1
+  (how-to-use-this-thing weird-partial-thing false) => :bool-1
+  (how-to-use-this-thing weird-partial-thing [1 2 3]) => nil
+  (how-to-use-this-thing weird-partial-thing "foo") => nil
   )
-
-(fact "a qlosure can do this thing"
-  (apply (:next-stage adder) [11]) => 88)
-
 
 (defmulti req-plus class)
-(defmethod req-plus java.lang.Long [i] :i-haz-a-integer)
-(defmethod req-plus java.lang.Double [f] :i-haz-a-float)
-(defmethod req-plus clojure.lang.Ratio [r] :hey-a-fraction)
-(defmethod req-plus :default [x] :not-a-thing-I-like)
+(defmethod req-plus java.lang.Number [i] (partial + i))
+(defmethod req-plus java.lang.String [s] (partial str s))
+(defmethod req-plus clojure.lang.PersistentVector [v] (partial concat v))
 
 (fact "Multimethods can recognize stuff"
-  (req-plus 8) => :i-haz-a-integer
-  (req-plus 2.3) => :i-haz-a-float
-  (req-plus false) => :not-a-thing-I-like
-  (req-plus 3/7) => :hey-a-fraction
-  )
+  ((req-plus 8) 7) => 15
+  ((req-plus "foo") "bar") => "foobar"
+  ((req-plus [1 2 3]) [4 5 6]) => (just [1 2 3 4 5 6])
+)
 
 (fact "understanding isa?"
   (isa? java.lang.Long java.lang.Number) => true
   (isa? java.lang.Long java.lang.Boolean) => false
   (isa? java.lang.Long java.lang.Object) => true
   (isa? java.lang.Long java.lang.Double) => false
+  )
+
+(fact "understanding the hierarchy"
+  (ancestors java.lang.Long) => (just [java.lang.Number java.io.Serializable
+    java.lang.Object java.lang.Comparable])
+  (isa? java.lang.Long java.lang.Comparable) => true
   )
