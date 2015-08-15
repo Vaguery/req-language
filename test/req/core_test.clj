@@ -100,10 +100,36 @@
 
 (fact "a handshake function is possible"
   (keys wants) => (just [:arg2 :arg3])
-  ((apply juxt (vals wants)) 6.2) => (just [true false])
   (keys (filter #((second %) 6.2) wants)) => (just [:arg2])
   (keys (filter #((second %) false) wants)) => nil
+  (keys (filter #((second %) 6.2) (:wants adder))) => (just [:rhs])
   )
+
+(defn can-use-this-thing? [qlosure item]
+  (let [w (:wants qlosure)]
+    (some? (keys (filter #((second %) item) w)))
+    )
+  )
+
+(fact "a handshake function can be used"
+  (can-use-this-thing? adder 6.2) => true
+  (can-use-this-thing? adder [1 2 3]) => false
+  (can-use-this-thing? adder "foo") => false
+  )
+
+(defn ways-to-use-this-thing [qlosure item]
+  (let [w (:wants qlosure)]
+    (into [] (keys (filter #((second %) item) w)))
+    )
+  )
+
+(fact "a wants list can be produced"
+  (ways-to-use-this-thing adder 6.2) => (just [:rhs])
+  (ways-to-use-this-thing adder [1 2 3]) => (just [])
+  (ways-to-use-this-thing adder "foo") => (just [])
+  )
+
+
 
 (fact "a qlosure can do this thing"
   (apply (:next-stage adder) [11]) => 88)
