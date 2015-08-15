@@ -79,3 +79,31 @@
   (:queue (step (req-with [:prev 1]))) => (just [1])
   (:queue (step (req-with [:prev]))) => (just [])
   )
+
+
+;; in-place closure design
+
+
+;; closures
+
+(defrecord Qlosure [wants bindings next-stage])
+
+(def adder
+  (let [bindings {:lhs 77}]
+    (Qlosure.
+      {:rhs number?}
+      bindings
+      (partial + (:lhs bindings))
+    )))
+
+(def wants {:arg2 number? :arg3 integer?})
+
+(fact "a handshake function is possible"
+  (keys wants) => (just [:arg2 :arg3])
+  ((apply juxt (vals wants)) 6.2) => (just [true false])
+  (keys (filter #((second %) 6.2) wants)) => (just [:arg2])
+  (keys (filter #((second %) false) wants)) => nil
+  )
+
+(fact "a qlosure can do this thing"
+  (apply (:next-stage adder) [11]) => 88)
