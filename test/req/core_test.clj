@@ -82,88 +82,9 @@
 
 
 ;; in-place closure design
+;; this is a literate design spike, so it's just going to be alternating tests and code here
 
-
-;; closures
-
-(defrecord Qlosure [as-str wants bindings next-stage])
-
-(defn boolean? [thing] (= (type thing) java.lang.Boolean))
-
-(def weird-partial-thing
-  (let [bindings {:lhs 77}]
-    (Qlosure.
-      "(«bool:1» ? (77+«num:1») : «num:2»)"
-      {:bool-1 boolean?, :num-1 number?, :bool-2 boolean?}
-      bindings
-      :i-am-a-placeholder-for-a-complicated-qlosure
-    )))
-
-(def wants {:arg2 number? :arg3 integer?})
-
-(fact "a handshake function is possible"
-  (keys wants) => (just [:arg2 :arg3])
-  (keys (filter #((second %) 6.2) wants)) => (just [:arg2])
-  (keys (filter #((second %) false) wants)) => nil
-  (keys (filter #((second %) 6.2) (:wants weird-partial-thing))) => (just [:num-1])
-  )
-
-(fact "a handshake function is possible"
-  (keys (:wants weird-partial-thing)) => (just [:bool-1 :num-1 :bool-2])
-  (keys (filter #((second %) 6.2) (:wants weird-partial-thing))) => (just [:num-1])
-  (keys (filter #((second %) false) (:wants weird-partial-thing))) => (just [:bool-1 :bool-2])
-  )
-
-(defn can-use-this-thing? [qlosure item]
-  (let [w (:wants qlosure)]
-    (some? (keys (filter #((second %) item) w)))
-    )
-  )
-
-(fact "a handshake function can be used"
-  (can-use-this-thing? weird-partial-thing 6.2) => true
-  (can-use-this-thing? weird-partial-thing false) => true
-  (can-use-this-thing? weird-partial-thing [1 2 3]) => false
-  (can-use-this-thing? weird-partial-thing "foo") => false
-  )
-
-(defn ways-to-use-this-thing [qlosure item]
-  (let [w (:wants qlosure)]
-    (into [] (keys (filter #((second %) item) w)))
-    )
-  )
-
-(defn how-to-use-this-thing [qlosure item]
-  (first (ways-to-use-this-thing qlosure item)))
-
-
-(fact "I can say what particular argument matches first"
-  (how-to-use-this-thing weird-partial-thing 6.2) => :num-1
-  (how-to-use-this-thing weird-partial-thing false) => :bool-1
-  (how-to-use-this-thing weird-partial-thing [1 2 3]) => nil
-  (how-to-use-this-thing weird-partial-thing "foo") => nil
-  )
-
-(defmulti req-plus class)
-(defmethod req-plus java.lang.Number [i] (partial + i))
-(defmethod req-plus java.lang.String [s] (partial str s))
-(defmethod req-plus clojure.lang.PersistentVector [v] (partial concat v))
-
-(fact "Multimethods can recognize stuff"
-  ((req-plus 8) 7) => 15
-  ((req-plus "foo") "bar") => "foobar"
-  ((req-plus [1 2 3]) [4 5 6]) => (just [1 2 3 4 5 6])
-)
-
-(fact "understanding isa?"
-  (isa? java.lang.Long java.lang.Number) => true
-  (isa? java.lang.Long java.lang.Boolean) => false
-  (isa? java.lang.Long java.lang.Object) => true
-  (isa? java.lang.Long java.lang.Double) => false
-  )
-
-(fact "understanding the hierarchy"
-  (ancestors java.lang.Long) => (just [java.lang.Number java.io.Serializable
-    java.lang.Object java.lang.Comparable])
-  (isa? java.lang.Long java.lang.Comparable) => true
+(fact "I can talk about numbers in Clojure"
+  (class 10) => java.lang.Long
+  (instance? Number 10/3) => true
   )
