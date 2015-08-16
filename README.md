@@ -244,6 +244,62 @@ Things to notice about this sketch:
 - type "hints" I was using as place-holders in the prior examples, like `«num»` and `«bool»`, can be extended to indicate unique (but still unspecified) instances. Thus `«num:61»` is not the same as either `«num»` or `«num:13»`.
 - However, if the interpreter binds `«num:13»` to be `77`, then its type immediately becomes the type of `77`: it is a match for `«int»`, `«odd»` `«cardinal»` and whatever other types it may have. (More on interpreter binding later).
 
+## But not without reason
+
+One more sketch, to demonstrate the ways in which this weird-ass approach facilities domain-specific algorithm discovery. Suppose we are working in the world of planar geometry, and we have types describing points (which are also vectors), lines, circles, intersections and so forth. For now, let me limit the instructions to things a compass and straightedge might be able to do.
+
+- `line-through(«pt»,«pt»)->«line»`
+- `circle(«pt»,«pt»)->«circle»`
+- `intersections(«curve»,«curve»)->(«pt»*)` zero or more `«pt»` instances
+- both `«line»` and `«circle»` are subtypes of `«curve»`
+
+~~~ text
+[(1,2) «pt:1» line-through circle (4,5) line-through intersections line-through]
+(1,2) [«pt:1» line-through circle (4,5) line-through intersections line-through]
+(1,2) [line-through circle (4,5) line-through intersections line-through «pt:1»] ;; «pt:1» is here an unbound literal
+[circle (4,5) line-through intersections line-through «pt:1» line-through((1,2),«pt»)] ;; a closure
+circle [(4,5) line-through intersections line-through «pt:1» line-through((1,2),«pt»)->«line»]
+[line-through intersections line-through «pt:1» line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle»]
+line-through [intersections line-through «pt:1» line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle»]
+[line-through «pt:1» line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*)]
+line-through [«pt:1» line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*)]
+[line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*) line-through(«pt:1»,«pt»)->«line»]
+line-through((1,2),«pt») [circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*) line-through(«pt:1»,«pt»)->«line»]
+[circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*) line-through(«pt:1»,«pt»)->«line» line-through((1,2),«pt»)]
+circle(center:(4,5) through:«pt»)->«circle» [intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*) line-through(«pt:1»,«pt»)->«line» line-through((1,2),«pt»)]
+[intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*) line-through(«pt:1»,«pt»)->«line» line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle»]
+intersections(line-through(«pt»,«pt»),«curve»)->(«pt»*) [line-through(«pt:1»,«pt»)->«line» line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle»]
+[line-through((1,2),«pt») circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*)]
+line-through((1,2),«pt») [circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*)]
+...
+;; this is cycling, waiting for more points; suppose a few come along later?
+...
+[(11,22) (22,33) (33,44) circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*) line-through((1,2),«pt»)]
+(11,22) [(22,33) (33,44) circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*) line-through((1,2),«pt»)]
+(11,22) [(33,44) circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*) line-through((1,2),«pt») (22,33)]
+(11,22) [circle(center:(4,5) through:«pt»)->«circle» intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*) line-through((1,2),«pt») (22,33) (33,44)]
+[intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*) line-through((1,2),«pt») (22,33) (33,44) circle(center:(4,5) through:(11,22))]
+intersections(line-through(«pt»,«pt»),line-through(«pt:1»,«pt»))->(«pt»*) [line-through((1,2),«pt») (22,33) (33,44) circle(center:(4,5) through:(11,22))]
+[(33,44) circle(center:(4,5) through:(11,22)) line-through((1,2),«pt») intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*)]
+(33,44) [circle(center:(4,5) through:(11,22)) line-through((1,2),«pt») intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*)]
+(33,44) [line-through((1,2),«pt») intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22))]
+[intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44))]
+...
+;; closer, but we need some more
+...
+[(44,55) (55,66) intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44))]
+(44,55) [(55,66) intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44))]
+(44,55) [intersections(line-through((22,33),«pt»),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44)) (55,66)]
+[circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44)) (55,66) intersections(line-through((22,33),(44,55)),line-through(«pt:1»,«pt»))->(«pt»*)]
+circle(center:(4,5) through:(11,22)) [line-through((1,2),(33,44)) (55,66) intersections(line-through((22,33),(44,55)),line-through(«pt:1»,«pt»))->(«pt»*)]
+[line-through((1,2),(33,44)) (55,66) intersections(line-through((22,33),(44,55)),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) ]
+line-through((1,2),(33,44)) [(55,66) intersections(line-through((22,33),(44,55)),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) ]
+[(55,66) intersections(line-through((22,33),(44,55)),line-through(«pt:1»,«pt»))->(«pt»*) circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44))]
+[circle(center:(4,5) through:(11,22)) line-through((1,2),(33,44)) intersections(line-through((22,33),(44,55)),line-through(«pt:1»,(55,66)))->(«pt»*)]
+;; and we can't go any farther as long as «pt:1» is undefined; it is essentially a function with a «pt» argument
+~~~
+
+
 ## tests
 
 The project uses [Midje](https://github.com/marick/Midje/).
