@@ -175,3 +175,14 @@
   ))
 
 
+;; understanding how to store next-state closures
+;;
+;; a :neg takes a number and applies (partial neg) to its arg
+;;   this is something like `#(- %)`
+;; a :gte takes a number and creates (partial >= 8);
+;;   the next time it makes ((partial >= 8) 13) and returns an answer
+;;   this is something like `#(partial >= %)`, then `(apply #(partial >= 8) [13])`
+;; so a naked instruction makes a Qlosure (if it has more than one arg)
+;;   a Qlosure makes a new Qlosure until it has all wants assigned
+;;   a Qlosure applies its closure to its final argument
+
