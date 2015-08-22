@@ -175,14 +175,49 @@
   ))
 
 
-;; understanding how to store next-state closures
+;; So let's explore the implications of using a symbol like :+ as a token.
+;; It's a req-function, meaning it may have multiple wants: numbers, collections,
+;; strings, etc.
 ;;
-;; a :neg takes a number and applies (partial neg) to its arg
-;;   this is something like `#(- %)`
-;; a :gte takes a number and creates (partial >= 8);
-;;   the next time it makes ((partial >= 8) 13) and returns an answer
-;;   this is something like `#(partial >= %)`, then `(apply #(partial >= 8) [13])`
-;; so a naked instruction makes a Qlosure (if it has more than one arg)
-;;   a Qlosure makes a new Qlosure until it has all wants assigned
-;;   a Qlosure applies its closure to its final argument
+;; What's the sequence of transformations like?
+;; 
+;; :+ wants: Number, Collection, String, Char, &c (an OR-list, in other words)
+;; Qlosure(:+, Number) wants: Number->Number, Vector-of-Numbers->V-o-N
+;; Qlosure(:+, Collection) wants: Collection->Collection
+;; Qlosure(:+, String) wants: String->String
+;; Qlosure(:+, Char) wants: Char->String
 
+
+(defrecord ReQfunction [token wants transformations]
+  Object
+  (toString [_] 
+    (str "«" token "»")))
+
+(def p (->ReQfunction
+            '+                ;; token
+            {:arg1 number?}   ;; wants
+            {:arg1 (fn [item] (->Qlosure {:arg1 number?} (partial + item)))}
+                              ;; transformations
+            ))
+
+(defn first-use-case
+  "determines the method by which a ReQitem will consume an item it
+  wants, returning the key for the outcome function"
+  [actor target]
+  (let [wants (:wants actor)]
+  (if wants
+    (first (first (filter #((second %) target) wants)))
+    nil
+    )))
+
+(println (first-use-case p 11))
+
+(defn transformer-to-be-used
+  [actor item]
+  ((first-use-case actor item) (:transformations actor)))
+
+(println ((transformer-to-be-used p 11) 11))
+
+(def ql ((transformer-to-be-used p 11) 11))
+
+(println ((:result ql) 2))
