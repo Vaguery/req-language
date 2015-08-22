@@ -215,8 +215,6 @@ Things to notice about this sketch:
 - there should be a "mortal" instruction which wipes out the immortality of its argument
 - there is an equivalent countdown timer operator, like `times` in the previous example, which only persists a fixed number of times
 
-## Wait almost all those examples end up in permanent loops
-=======
 ## Wait, almost all those examples end up in permanent loops
 
 Yes they do. Even an empty program, or one composed entirely of non-interacting literals like `[1 2 3]` should be thought of as cycling forever.
@@ -318,7 +316,6 @@ line-through((1,2),(33,44)) [(55,66) intersections(line-through((22,33),(44,55))
 ;; and we can't go any farther as long as «pt:1» is undefined; it is essentially a function with a «pt» argument
 ~~~
 
-=======
 ## design notes and implementation observations
 
 - ReQ literals do not have "wants", but are often wanted. Thus, though you might not think it, token order in the program is actually quite important: the first literals usually become the first arguments for most of the functions, though because closures are sent to the end of the queue you usually end up spreading them out
