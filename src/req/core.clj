@@ -91,6 +91,55 @@
       (assoc req :queue (conj (pop (pop q)) item-2 item-1))))
     ))
 
+;; Qlosure objects
+
+(defrecord Qlosure [token transitions]
+  Object
+  (toString [_] 
+    (str "«" token "»")))
+
+(defn get-wants
+  "returns the :wants table from a Qlosure item"
+  [qlosure]
+  (get-in qlosure [:transitions :wants]))
+
+(defn req-wants
+  "determines whether one ReQ item wants another; that is,
+  whether the first can use the second as an argument to a function"
+  [actor target]
+  (if-let [wants (get-wants actor)]
+    (if-let [want (first (filter #((second %) target) wants))]
+      (first want)
+      false)
+    false))
+
+(defn can-interact?
+  "determines whether either ReQ item wants the other"
+  [item1 item2]
+  (boolean (or (req-wants item1 item2) (req-wants item2 item1))))
+
+(defn all-interacting-items
+  "walks through a collection and returns all things that
+  either are wanted by or want the actor"
+  [actor items]
+    (filter #(can-interact? actor %) items)
+    )
+
+(defn do-not-interact?
+  "determines whether either of two ReQ items wants the other (a convenience for use with `split-with`)"
+  [a b]
+  (not (can-interact? a b)))
+
+(defn split-with-interaction
+  "splits a collection and returns a vector of two parts:
+  the first contains only things that _do not_ interact with the
+  actor; the second begins with the first item that _does_ interact
+  with the actor; if none of them interact with the actor, the first
+  collection will be empty"
+  [actor items]
+  (split-with (partial do-not-interact? actor) items))
+
+
 ;; interpreter stepping
 
 (defn step
@@ -110,4 +159,7 @@
       :prev (req-prev popped-state)
       (assoc req :queue (conj tail top)))
   ))
+
+;; qlosures
+
 
