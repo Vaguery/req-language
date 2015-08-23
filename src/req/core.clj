@@ -42,6 +42,7 @@
   (req-with [])
   )
 
+
 (defn req-next
   "sends the top item to the tail of the queue"
   [req]
@@ -51,6 +52,7 @@
     req
     (assoc req :queue (conj (pop q) top)))
   ))
+
 
 (defn req-pop
   "throws away the top item on the queue"
@@ -81,6 +83,7 @@
     (assoc req :queue (reverse q)))
   )
 
+
 (defn req-swap
   "pop the top two items and requeue them in swapped order"
   [req]
@@ -91,17 +94,21 @@
       (assoc req :queue (conj (pop (pop q)) item-2 item-1))))
     ))
 
+
 ;; Qlosure objects
+
 
 (defrecord Qlosure [token transitions]
   Object
   (toString [_] 
     (str "«" token "»")))
 
+
 (defn get-wants
   "returns the :wants table from a Qlosure item"
   [qlosure]
   (get-in qlosure [:transitions :wants]))
+
 
 (defn req-wants
   "determines whether one ReQ item wants another; that is,
@@ -113,10 +120,12 @@
       false)
     false))
 
+
 (defn can-interact?
-  "determines whether either ReQ item wants the other"
+  "determines whether either ReQ item wants the other; returns a boolean"
   [item1 item2]
   (boolean (or (req-wants item1 item2) (req-wants item2 item1))))
+
 
 (defn all-interacting-items
   "walks through a collection and returns all things that
@@ -125,10 +134,12 @@
     (filter #(can-interact? actor %) items)
     )
 
+
 (defn do-not-interact?
   "determines whether either of two ReQ items wants the other (a convenience for use with `split-with`)"
   [a b]
   (not (can-interact? a b)))
+
 
 (defn split-with-interaction
   "splits a collection and returns a vector of two parts:
@@ -139,8 +150,21 @@
   [actor items]
   (split-with (partial do-not-interact? actor) items))
 
+(defn get-transformation
+  "returns the indexed transformation from a Qlosure item"
+  [qlosure item]
+  (let [which (req-wants qlosure item)]
+    (which (get-in qlosure [:transitions :transformations]))
+    ))
+
+(defn req-consume
+  "applies an (unchecked) transformation from the actor onto the item arg"
+  [actor item]
+  ((get-transformation actor item) item)
+  )
 
 ;; interpreter stepping
+
 
 (defn step
   "pops the top item from a ReQinterpreter and updates the interpreter state"
@@ -159,7 +183,3 @@
       :prev (req-prev popped-state)
       (assoc req :queue (conj tail top)))
   ))
-
-;; qlosures
-
-

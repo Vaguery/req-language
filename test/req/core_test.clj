@@ -80,6 +80,7 @@
   (:queue (step (req-with [:prev]))) => (just [])
   )
 
+
 ;; Qlosures
 
 (fact "a Qlosure is created with a token,
@@ -90,12 +91,14 @@
   )
 
 ;; a Qlosure must also have a :transitions attribute, which should
-;;   be a single map with map-valued values, which must contain a
+;;   be a single map with maps as values, and those must contain a
 ;;   :want and a :transformation associated with that :want
+
 
 (fact "get-wants produces the :wants component of a Qlosure's :transitions table"
   (get-wants (->Qlosure "+" {:wants {:arg1 9}})) => {:arg1 9}
   )
+
 
 (fact "We can tell when (and how) an item `req-wants` another (indicating it can act as an arg)"
   (req-wants 3 4) => false
@@ -116,6 +119,7 @@
     )
   )
 
+
 (fact "can-interact? determines whether either item wants the other"
   (can-interact? 3 4) => false
   (can-interact? 3 false) => false
@@ -125,6 +129,7 @@
     (can-interact? 4 q) => true
     (can-interact? q q) => false
   ))
+
 
 (fact "do-not-interact? determines whether either item wants the other"
   (do-not-interact? 3 4) => true
@@ -136,6 +141,7 @@
     (do-not-interact? q q) => true
   ))
 
+
 (fact "all-interacting-items returns everything in a collection that can interact with the (first arg) ReQ item"
   (let [q (->Qlosure :foo {:wants {:int integer?, :float float?, :vec vector?}})]
     (all-interacting-items 3 [1 2 3 4 5 6]) => []
@@ -143,6 +149,7 @@
     (all-interacting-items q []) => []
     (all-interacting-items q [1 1 [1 1] 1]) => [1 1 [1 1] 1]
   ))
+
 
 (fact "split-with-interaction takes a sequential collection and splits it at the first item that interacts with the actor (arg 1)"
   (fact "if there is no interaction, the first list contains everything"
@@ -159,45 +166,55 @@
   ))
 
 
+;; a hideous thing that needs to be fixed:
 
-; (def p (->Qlosure
-;             "«+»"                             ;; token
-;             {:num number?, :vec vector?}      ;; wants
-;             {:num (fn [item] (->Qlosure
-;                                 (str "«" item "+_»")
-;                                 {:num number?}
-;                                 {:num (partial + item)}))
-;              :vec (fn [item] (->Qlosure
-;                                 (str "«" item "+_»")
-;                                 {:vec vector?}
-;                                 {:vec (partial into item)}))}
-;                                               ;; transformations
-;             ))
+(def p (->Qlosure
+            "+"                             
+            {:wants 
+              {:num number?, :vec vector?}      ;; wants
+             :transformations 
+              {:num
+                (fn [item]
+                  (->Qlosure
+                  (str item "+⦿")
+                  {:wants {:num number?}
+                   :transformations {:num (partial + item)}}))
+               :vec
+                (fn [item]
+                  (->Qlosure
+                  (str item "+⦿")
+                  {:wants {:vec vector?}
+                   :transformations {:vec (partial into item)}}))}}))
+                  
 
-; (defn first-use-case
-;   "determines the method by which a ReQitem will consume an item it
-;   wants, returning the key for the outcome function"
-;   [actor target]
-;   (let [wants (:wants actor)]
-;   (if wants
-;     (first (first (filter #((second %) target) wants)))
-;     nil
-;     )))
+(fact "this monstrous Qlosure object (and not very complicated one) can be used"
+  (req-wants p 11) => :num
+  (req-wants p [1 2 3]) => :vec
+  )
 
-; ;;(println (first-use-case p 11))
+(fact "we can use get-transformation to... well, you know"
+  (get-transformation p 11) => (:num (get-in p [:transitions :transformations]))
+  (get-transformation p [11]) => (:vec (get-in p [:transitions :transformations]))
+  )
 
-; (defn transformer-to-be-used
-;   [actor item]
-;   ((first-use-case actor item) (:transformations actor)))
+(fact "req-consume applies the transformation from a Qlosure to an appropriate item"
+  (str (req-consume p 11)) => "«11+⦿»"
+  (str (req-consume p [1 2 3])) => "«[1 2 3]+⦿»"
+  )
 
-; ;;(println ((transformer-to-be-used p 11) 11))
+(fact "the result of req-consume can itself be applied to an appropriate item"
+  (req-consume (req-consume p 11) 19) => 30
+  (req-consume (req-consume p [1 2]) [3]) => [1 2 3]
+  )
 
-; (defn consume
-;   [actor item]
-;   ((transformer-to-be-used actor item) item))
-
-; ;;(println (consume p 11))
-
-; (println (str "the answer when «+» acts on 11 and then 2 is " (consume (consume p 11) -2/3))) ;; => 13, which is '(consume (consume «+» 11) 2)
-
-; (println (str "the answer when «+» acts on [1 2] and then [3 4] is " (consume (consume p [1 2]) [3 4]))) ;; => [1 2 3 4], which is '(consume (consume «+» 11) 2)
+;; 
+;; The interpreter cycle:
+;;   pop an item
+;;   if it's an interpreter instruction, do it
+;;   if it interacts with anything on the queue,
+;;     - pop everything it skips
+;;     - create the interaction result(s)
+;;     - push the popped things to the tail of the queue
+;;     - push the result(s) onto the tail of the queue
+;;     - push any immortal arguments to the tail of the queue
+;;   if it doesn't interact, push it to the tail of the queue
