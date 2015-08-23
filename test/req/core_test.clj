@@ -194,13 +194,17 @@
     (str "«" token "»")))
 
 (def p (->ReQfunction
-            "«+»"                ;; token
-            {:arg1 number?}   ;; wants
-            {:arg1 (fn [item] (->Qlosure
+            "«+»"                             ;; token
+            {:num number?, :vec vector?}      ;; wants
+            {:num (fn [item] (->Qlosure
                                 (str "«" item "+_»")
-                                {:arg1 number?}
-                                {:arg1 (partial + item)}))}
-                              ;; transformations
+                                {:num number?}
+                                {:num (partial + item)}))
+             :vec (fn [item] (->Qlosure
+                                (str "«" item "+_»")
+                                {:vec vector?}
+                                {:vec (partial into item)}))}
+                                              ;; transformations
             ))
 
 (defn first-use-case
@@ -227,4 +231,6 @@
 
 ;;(println (consume p 11))
 
-(println (consume (consume p 11) 2)) ;; => 13, which is ((«+» 11) 2)
+(println (str "the answer when «+» acts on 11 and then 2 is " (consume (consume p 11) -2/3))) ;; => 13, which is '(consume (consume «+» 11) 2)
+
+(println (str "the answer when «+» acts on [1 2] and then [3 4] is " (consume (consume p [1 2]) [3 4]))) ;; => [1 2 3 4], which is '(consume (consume «+» 11) 2)
