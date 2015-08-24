@@ -2,7 +2,7 @@
 
 `ReQ` (pronounced "wreck" or "re-queue", depending on how long you've tried to use it) is a language for genetic programming. Its... well, it's odd, see.
 
-The ReQ interpreter uses a single queue for running programs. All ReQ "items" (or "tokens" I guess?) act a bit like messages, and a bit like objects.
+The ReQ interpreter uses a single queue for running programs. All ReQ "items" (or "tokens" or ... OK, I'm going to call them "Qlosures" because they're not all closures but some are and they can almost all make closures in one way or another, and Clojure has `Closure` as a protected word...) act a bit like messages, and a bit like objects.
 
 The interpreter cycle is quite simple:
 
@@ -18,7 +18,7 @@ That's it.
 
 Not working yet. Close, but the design is still emerging.
 
-## items "addressing" one another
+## Qlosures and how they interact
 
 Because I'm not a Computer Sciencer, I'm going to use the word "address" when speaking of what one token does to another in the `ReQ` language. This is something like "being compatible", and something like "being an argument for" and something like "recognizing", but to be honest I don't have a good word for the concept as sketched. Also I would be happy to accept improvements and suggestions.
 
@@ -39,7 +39,7 @@ I haven't settled on an order for filling in the arguments of a closure yet, but
   - `reverse`∘`[2 1 0]` -> `[0 1 2]`
   - `map`∘`(1..99)` -> `map(«num»->«T»,(1..99)->«(T)»`
 
-(As you may have noticed, I'm using a type system very similar to that found in Apple's Swift language here).
+(As you may have noticed, I'm using a type system notation inspired by the one in Apple's Swift language).
 
 ### some sketches of simple scripts running
 
@@ -316,28 +316,81 @@ line-through((1,2),(33,44)) [(55,66) intersections(line-through((22,33),(44,55))
 ;; and we can't go any farther as long as «pt:1» is undefined; it is essentially a function with a «pt» argument
 ~~~
 
-## design notes and implementation observations
+### Channels
+
+The role of "variables" in `ReQ` scripts is played by "Channels". Each Channel has a unique name, a type (expressed as a "want") and can hold only a single _value_ at a time. Any _reference_ to a particular Channel will show the same value to all reading processes at the same time, synchronously, everywhere in the universe. "Everywhere in the universe" actually means just that: _inputs_ can only be "sent" to a `ReQ` interpreter by being set on one of that interpreter instance's Channels by some external process, and _outputs_ of a `ReQ` interpreter are produced when (and if) the process writes to that Channel. Similarly, `ReQ` interpreters can spawn new interpreter instances, but can only communicate with them (asynchronously) over shared Channels.
+
+As shorthand in the following discussion I'll try to use this nomenclature, which is still being developed as the code gets written:
+
+- `≋:x12|«int»|nil≋` is a channel named `:x12`, with (`ReQ`) type `:int` but no set value
+- `≋:x12|«int»|8812≋` now contains the value `8812`
+- `≋:out|«any»|nil≋` is a channel named `:out` with type `:any`, meaning it can be set to any type
+- I think I'll refer to channels in passing with a shorthand like `:x12|` (with the vertical bar as part of the name, to differentiate them from standard keywords)
+
+Channels are not consumed by instructions, being born "immortal". That is, whether they are actor or argument, they will remain on the queue even after contributing their value.
+
+A Channel responds to the "wants" of other Qlosure items as if it were the type of its contents (not its specified type). So `≋:out|«any»|9.2≋` is wanted by the `:+` instruction; the value is provided as an argument, while the Channel reference itself persists (being immortal). For example:
+
+~~~ text
+[:+ ≋:z81|«any»|9.2≋ 12]
+:+ [≋:z81|«any»|9.2≋ 12]      ;; :+ in the hot seat
+[12 «9.2+_» ≋:z81|«any»|9.2≋] ;; ≋:z81|«any»|9.2≋ "is" 9.2, and is also immortal
+12 [«9.2+_» ≋:z81|«any»|9.2≋] ;; 12 in the hot seat
+[≋:z81|«any»|9.2≋ 21.2]       ;; the Qlosure wants 12, produces the sum
+...                           ;; cycles forever               
+~~~
+
+Whenever the value of any _reference_ to a Channel is changed, _all references to that Channel are updated_ (asynchronously, but immediately as it were).
+
+#### Instructions affecting Channels:
+
+- `:name` wants a Channel and will produce its name as a Qlosure instruction. That instruction when executed in turn _wants_ the named channel, and will produce its value when applied (though `nil` cannot be produced in `ReQ`). For example `[:name ≋:foo|«float»|nil≋]` will produce `[:foo ≋:foo|«num»|2.3≋]`, and that will produce `[2.3 ≋:foo|«num»|2.3≋]`
+- `:read` wants a Channel, but will immediately produce its value when it finds its argument (though `nil` cannot be produced in `ReQ`)
+- `:name?` and `:read?` act as before, but if the Channel has no value (is `nil`) when acquired, the instruction is not consumed
+- `:write` wants a Channel, and when it finds one it will form a Qlosure that wants an appropriately-typed value; when it gets that, it will set the Channel's value and be done
+- `:send` wants any item, and when it finds that it forms a Qlosure that wants to send it to a Channel of the appropriate type. For example the code `[:send 8 ≋:out|«int»|612≋]` when run will result in the `8` being set in channel `:out|`
+- `:pop` and `:pop?` (when they affect a Channel, as opposed to some sequence) "writes" a `nil` to the Channel argument and return the old Channel value to the queue
+- `:dup` and `:discard` and so forth (all the instructions that act on items of any type on the queue): an immortal item (like any Channel) _can_ be deleted or duplicated by these instructions, but doing so does not delete _the Channel itself_, just those references to it
+
+#### Other Channel-related information
+
+- Every interpreter instance is born with a special Channel already defined: `≋:[self]|«interpreter»|*≋`, where `[self]` is the unique ID or "address" of the interpreter instance. As with other Channel references, the _value_ of this Channel is the Interpreter instance itself, and as a result _it can receive instructions that affect Interpreter items_.
+- `:self` is an imperative that produces a new reference to the receiving Interpreter's special `:[self]|` channel
+- `:channels` is an imperative that produces a `:set` of all Channels defined in the receiving Interpreter's experience, including `:[self]|` (see below); note it needs to be received by an Interpreter instance...
+
+An example sketch:
+
+~~~ text
+;; in an Interpreter with no Channels besides :self| in its experience
+[9 10 ≋:[self]|«interpreter»|*≋ 10 :double]
+9 [≋:[self]|«interpreter»|*≋ 10 :double] ;; 9 in hot seat
+9 [≋:[self]|«interpreter»|*≋ 10 :double] ;; :double wants only collections or Interpreters
+[≋:[self]|«interpreter»|*≋ 10 :double 9]
+≋:[self]|«interpreter»|*≋ [10 :double 9] ;; channel in the hot seat
+≋:[self]|«interpreter»|*≋ [:double 9 10] ;; channel doesn't want 10
+[9 10] ;; :double wants channel
+[9 9 10 10 ≋:[self]|«interpreter»|*≋] ;; :double imperative doubles all items, then channel is returned (it's immortal) 
+~~~
+
+For convenience of scoring individuals on their overall behavior, channels record a time-series of their contents while the interpreter is running (including `nil` empty states, if any). An interpreter has no access to this stream of data, though.
+
+#### Still thinking
+
+- There needs to be a well-considered way for a new Channel to be created in a receiving Interpreter; if `:new-channel` (or whatever) is sent to `:[self]|`, it should produce a new uniquely-named Channel in the running interpreter;
+- When a new Interpreter is created (with the running one), its `:self|` Channel should be known to its parent
+- Ad hoc Channels can be used for persistent addressable memory
+- A Channel that contains `:code` (or an entire Interpreter) presents some interesting questions about synchronization
+- `:read` applied to `:self` will produce an internally-nested "clone" of the running Interpreter, though with a unique id
+
+
+## Other design notes and implementation observations
 
 - ReQ literals do not have "wants", but are often wanted. Thus, though you might not think it, token order in the program is actually quite important: the first literals usually become the first arguments for most of the functions, though because closures are sent to the end of the queue you usually end up spreading them out
 - prototypes: there are [well, should be] a group of instructions which take a literal argument and produce a "greedy skeleton" based on its type structure. A trivial example might take an `int` and produce a skeleton `«int»`, which wants to consume a new `int` value; more interestingly, a collection like `(3,false,IdentityMatrix(7)` might produce a skeleton `List(«int»,«bool»,«Matrix(7,7)»`, which wants those values. Note that there are [should be] other instructions for cloning; these deal primarily with multicomponent types, and permit things like search or "mutability"
 - similarly, `:replace-in` takes a complex object (collection or equivalent) and another object, and replaces a matching component (if any) in the first with the second; `(1,2,false,2.3)` might be the first argument, and `7.2` (a «float») the second argument, and the result would be `(1,2,false,7.2)`. In other words, this is pattern-matching component addressing
 - a related `:replace-all-in` would make all substitutes; indeed, pattern matching seems like a good opportunity to wedge extra low-level diversity into the behavioral repertoire for GP
 - this makes me wonder if I want a raw `type` type or not
-- channels: inputs (whether static or real-time) are consumed by the interpreter over a queue of channels; each channel is accessible by the item in the "hot seat". In the `ReQ` equivalent to traditional static functional programming, for example, the channel `x` might be set to an input value `8.2` before the program is run, and one or more `channel(:x)` tokens appear in the script. When any item in the hot seat addresses them, they report they're `float` type and participate in building closure results.
-  
-  In a more dynamic setting, say where the script controls an agent interacting with its environment, the channels can be thought of as representing sensors and effectors: input channels as sensors, output channels as effectors (or, rather, the input channels of external processes).
 
-  Channels are not consumed by instructions, being born "immortal".
-  
-  Channels have names, and can be read by instructions set to those names. So a `channel(:x)` can be affected by a `name` instruction, and will produce the keyword `:x`, which in turn will search for _that particular channel_ as an argument and read it specifically when invoked. There is also a general `read` instruction which will extract the value from a `channel` of any type, essentially cloning its literal into a new item, and a `take` instruction which will extract the value and _empty_ the channel, leaving it as a `nil` value.
-  
-  Output to channels are accessed by a `write` instruction, which takes (any) channel and an item to be written as its arguments. Any value can be written (or overwritten) to any channel, either by the running program or the external world, unless the channel is _locked_. The `lock` instruction takes a name.
-  
-  For convenience of scoring individuals on their overall behavior, channels record a time-series of their contents while the interpreter is running (including `nil` empty states, if any).
-
-  It may be useful for there to be instructions like `read!`, which take a channel as an input, and which if the channel is `nil` will `pause` execution until a value appears in that channel (obviously from an external source).
-
-  There probably should be a way of making new channels, though that's not yet clear. One suspects they will be used as local variables or persistent storage of some sort, if they do arise.
 
 ## tests
 
