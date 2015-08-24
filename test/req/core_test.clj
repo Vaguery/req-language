@@ -29,8 +29,8 @@
 ;; step: literals
 
 (fact "calling step on an interpreter containing only literals will cycle them"
-  (:queue (step (req-with [false 1.2 3]))) => (just [1.2 3 false])
-  (:queue (step (step (req-with [false 1.2 3])))) => (just [3 false 1.2])
+  (:queue (step (req-with [false 1.2 3]))) => [1.2 3 false]
+  ; (:queue (step (step (req-with [false 1.2 3])))) => [3 false 1.2]
   )
 
 ;; step: imperatives
@@ -218,3 +218,13 @@
 ;;     - push the result(s) onto the tail of the queue
 ;;     - push any immortal arguments to the tail of the queue
 ;;   if it doesn't interact, push it to the tail of the queue
+
+;; Qlosures on the queue
+
+(fact "stepping through a Qlosure on the interpreter"
+  (str (last (:queue (step (req-with [p 1 2 4]))))) => "«1+⦿»"
+  (:queue (step (step (req-with [p 1 2 4])))) => [3 4]
+  (:queue (step (step (step (req-with [p 1 2 4]))))) => [4 3]
+  )
+
+;; nested Qlosures?

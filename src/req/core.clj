@@ -163,23 +163,46 @@
   ((get-transformation actor item) item)
   )
 
+(defn ordered-consume
+  "if the first arg wants the second, it consumes it; otherwise the second
+  consumes the first"
+  [item1 item2]
+  (if (req-wants item1 item2)
+    (req-consume item1 item2)
+    (req-consume item2 item1)))
+
 ;; interpreter stepping
+
+(def req-imperatives
+  {
+    :archive req-archive
+    :dup     req-dup
+    :flush   req-flush
+    :next    req-next
+    :reverse req-reverse
+    :swap    req-swap
+    :pop     req-pop
+    :prev    req-prev
+  })
 
 
 (defn step
   "pops the top item from a ReQinterpreter and updates the interpreter state"
   [req]
-  (let [top (peek (:queue req))
+  (let [hot (peek (:queue req))
         tail (pop (:queue req))
         popped-state (req-with tail)]
-    (condp = top
-      :archive (req-archive popped-state)
-      :dup (req-dup popped-state)
-      :flush (req-flush popped-state)
-      :next (req-next popped-state)
-      :reverse (req-reverse popped-state)
-      :swap (req-swap popped-state)
-      :pop (req-pop popped-state)
-      :prev (req-prev popped-state)
-      (assoc req :queue (conj tail top)))
+    (cond
+      (contains? req-imperatives hot)
+        ((hot req-imperatives) popped-state)
+      (seq (all-interacting-items hot tail))
+        (let [parts (split-with-interaction hot tail)
+              filler (first parts)
+              target (first (second parts))
+              result (ordered-consume hot target)
+              remainder (into [] (drop 1 (second parts)))]
+              (req-with 
+                (into (vec remainder) (cons result filler))))
+      :else
+        (assoc req :queue (conj tail hot)))
   ))
