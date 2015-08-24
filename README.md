@@ -143,8 +143,12 @@ false [(3,«any»)->«list» 5 ) 6 ÷ ) 1+«num»->«num»] ;; the false is cons
 
 #### adverbs and adjectives
 
+"Immortal" is a modifier that can be applied to any item. It's signified (in these sketches, at least) by appending a `⥀` character to the immortal token. Whenever that token would _normally_ be consumed as the actor or argument of an interaction, the immortal token is retained and return _along with the normal results_, as a kind of "footnote" result. In general, immortality is not contagious; the results of interactions are not automatically immortal themselves.
+
+So for instance, if a number `6` were to become `6⥀`, negating it would produce _both_ `-6` and `6⥀` (in that order) on the queue.
+
 ~~~ text
-# (exploring the ⥀ “don’t consume args” modifier)
+# (exploring the ⥀ "immortal" modifier)
 # type hints are hidden
 [1 dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷]
 1 [dup 2 ⥀ + ⥀ * 3 4 - 5 ⥀ 6 ÷] ;; 1 is duped
@@ -231,37 +235,14 @@ As a result, we should permit the possibility that there will _be_ no result. Th
 
 Further, in cases where there is "a result" communicated over a `channel`, that result is a time-series of values, some or all of which may be `nil`. It's a quandary.
 
-## It gets worse
 
-Here's another sketch, which revisits the "simple arithmetic" one above, but with some extra magic sugar added:
-
-~~~ text
-[«num:1» «int:1» + * «float:1» «rational:1» - «odd:1» 42 ÷]
-«num:1» [«int:1» + * «float:1» «rational:1» - «odd:1» 42 ÷]
-«num:1» [+ * «float:1» «rational:1» - «odd:1» 42 ÷ «int:1»]
-[* «float:1» «rational:1» - «odd:1» 42 ÷ «int:1» «num:1»+«num»->«num»]
-* [«float:1» «rational:1» - «odd:1» 42 ÷ «int:1» «num:1»+«num»->«num»]
-[«rational:1» - «odd:1» 42 ÷ «int:1» «num:1»+«num»->«num» «num»*«float:1»->«num»]
-«rational:1» [- «odd:1» 42 ÷ «int:1» «num:1»+«num»->«num» «num»*«float:1»->«num»]
-[«odd:1» 42 ÷ «int:1» «num:1»+«num»->«num» «num»*«float:1»->«num» «rational:1»-«num»->«num»]
-«odd:1» [42 ÷ «int:1» «num:1»+«num»->«num» «num»*«float:1»->«num» «rational:1»-«num»->«num»]
-«odd:1» [÷ «int:1» «num:1»+«num»->«num» «num»*«float:1»->«num» «rational:1»-«num»->«num» 42]
-[«int:1» «num:1»+«num»->«num» «num»*«float:1»->«num» «rational:1»-«num»->«num» 42 «odd:1»÷«num»->«num»]
-«int:1» [«num:1»+«num»->«num» «num»*«float:1»->«num» «rational:1»-«num»->«num» 42 «odd:1»÷«num»->«num»]
-[«num»*«float:1»->«num» «rational:1»-«num»->«num» 42 «odd:1»÷«num»->«num» «num:1»+«int:1»->«num»]
-[42 «odd:1»÷«num»->«num» «num:1»+«int:1»->«num» («rational:1»-«num»)*«float:1»->«num»]
-42 [«odd:1»÷«num»->«num» «num:1»+«int:1»->«num» («rational:1»-«num»)*«float:1»->«num»]
-[«num:1»+«int:1»->«num» («rational:1»-«num»)*«float:1»->«num» «odd:1»÷42->«num»]
-[«odd:1»÷42->«num» («rational:1»-(«num:1»+«int:1»))*«float:1»->«num»]
-[those cycle forever]
-~~~
 
 Things to notice about this sketch:
 - abstract expressions, as long as they are sufficiently strongly typed, can act on one another
 - type "hints" I was using as place-holders in the prior examples, like `«num»` and `«bool»`, can be extended to indicate unique (but still unspecified) instances. Thus `«num:61»` is not the same as either `«num»` or `«num:13»`.
 - However, if the interpreter binds `«num:13»` to be `77`, then its type immediately becomes the type of `77`: it is a match for `«int»`, `«odd»` `«cardinal»` and whatever other types it may have. (More on interpreter binding later).
 
-## But not without reason
+## Not without reason
 
 One more sketch, to demonstrate the ways in which this weird-ass approach facilities domain-specific algorithm discovery. Suppose we are working in the world of planar geometry, and we have types describing points (which are also vectors), lines, circles, intersections and so forth. For now, let me limit the instructions to things a compass and straightedge might be able to do.
 
@@ -316,7 +297,7 @@ line-through((1,2),(33,44)) [(55,66) intersections(line-through((22,33),(44,55))
 ;; and we can't go any farther as long as «pt:1» is undefined; it is essentially a function with a «pt» argument
 ~~~
 
-### Channels
+## Channels
 
 The role of "variables" in `ReQ` scripts is played by "Channels". Each Channel has a unique name, a type (expressed as a "want") and can hold only a single _value_ at a time. Any _reference_ to a particular Channel will show the same value to all reading processes at the same time, synchronously, everywhere in the universe. "Everywhere in the universe" actually means just that: _inputs_ can only be "sent" to a `ReQ` interpreter by being set on one of that interpreter instance's Channels by some external process, and _outputs_ of a `ReQ` interpreter are produced when (and if) the process writes to that Channel. Similarly, `ReQ` interpreters can spawn new interpreter instances, but can only communicate with them (asynchronously) over shared Channels.
 
@@ -339,6 +320,8 @@ A Channel responds to the "wants" of other Qlosure items as if it were the type 
 [≋:z81|«any»|9.2≋ 21.2]       ;; the Qlosure wants 12, produces the sum
 ...                           ;; cycles forever               
 ~~~
+
+Similarly, a Channel that contains _code_ (an instruction, for instance) acts as though it _were_ that instruction: it can consume arguments, and produce the appropriate result(s) as though it were that instruction or Qlosure. But the Channel reference itself is not changed in this process, and is also returned as a footnote result.
 
 Whenever the value of any _reference_ to a Channel is changed, _all references to that Channel are updated_ (asynchronously, but immediately as it were).
 
