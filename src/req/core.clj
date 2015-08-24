@@ -3,7 +3,24 @@
 
 (defn new-queue 
   "creates a new PersistentQueue populated with the specified collection"
-  [contents] (reduce conj (clojure.lang.PersistentQueue/EMPTY) contents))
+  ([] (clojure.lang.PersistentQueue/EMPTY))
+  ([contents] (into (clojure.lang.PersistentQueue/EMPTY) contents)))
+
+
+(defn append-this-to-queue
+  "adds one item to the tail of a queue; if it's a `sequential`, it is concatenated, otherwise it is pushed"
+  [q new-item]
+  (if (sequential? new-item)
+    (new-queue (concat q new-item))
+    (conj q new-item)))
+
+
+(defn queue-from-items
+  "creates a new queue from the `base` collection, and applies `append-this-to-queue` to add all the remaining items if needed"
+  [base & more-items]
+  (new-queue (reduce append-this-to-queue base more-items)))
+
+
 
 ;; interpreters
 
@@ -150,6 +167,7 @@
   [actor items]
   (split-with (partial do-not-interact? actor) items))
 
+
 (defn get-transformation
   "returns the indexed transformation from a Qlosure item"
   [qlosure item]
@@ -157,11 +175,13 @@
     (which (get-in qlosure [:transitions :transformations]))
     ))
 
+
 (defn req-consume
   "applies an (unchecked) transformation from the actor onto the item arg"
   [actor item]
   ((get-transformation actor item) item)
   )
+
 
 (defn ordered-consume
   "if the first arg wants the second, it consumes it; otherwise the second
@@ -171,7 +191,10 @@
     (req-consume item1 item2)
     (req-consume item2 item1)))
 
+
+
 ;; interpreter stepping
+
 
 (def req-imperatives
   {
@@ -202,7 +225,7 @@
               result (ordered-consume hot target)
               remainder (into [] (drop 1 (second parts)))]
               (req-with 
-                (into (vec remainder) (cons result filler))))
+                (queue-from-items remainder filler result)))
       :else
         (assoc req :queue (conj tail hot)))
   ))

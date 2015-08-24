@@ -8,15 +8,49 @@
 (fact "new-queue will populate the queue with the seq it's handed"
   (count (new-queue [1 2 3 4])) => 4
   (peek (new-queue '(1 2 3 4))) => 1
-  (new-queue [:a :b :a :b]) => (just [:a :b :a :b])
+  (new-queue [:a :b :a :b]) => [:a :b :a :b]
   )
 
+(fact "new-queue works with no argument"
+  (count (new-queue)) => 0)
+
 (fact "conjing to a queue adds at the right"
-  (rest (conj (new-queue [1 2 3 4]) 99)) => (just [2 3 4 99])
+  (rest (conj (new-queue [1 2 3 4]) 99)) => [2 3 4 99]
   )
 
 (fact "popping from a queue removes from the left"
-  (pop (new-queue [1 2 3 4])) => (just [2 3 4])
+  (pop (new-queue [1 2 3 4])) => [2 3 4]
+  )
+
+(fact "peeking into a queue reads the item at the left"
+  (peek (new-queue [1 2 3 4])) => 1
+  )
+
+;; helpers for managing items being pushed by the interpreter
+
+(fact "append-this-to-queue appends an item or concats a seq to a seq"
+  (let [my-q (new-queue [1 2 3])
+        nested-q (new-queue [1 [2 3]])]
+    (append-this-to-queue my-q 4) => [1 2 3 4]
+    (append-this-to-queue my-q '(4 5)) => [1 2 3 4 5]
+    (append-this-to-queue my-q false) => [1 2 3 false]
+    (append-this-to-queue (new-queue) false) => [false]
+    (append-this-to-queue nested-q [false [true]]) => [1 [2 3] false [true]]
+    (append-this-to-queue nested-q {:a 8}) => [1 [2 3] {:a 8}]
+    (append-this-to-queue nested-q #{1 2 3}) => [1 [2 3] #{1 2 3}]
+  ))
+
+(fact "append-this-to-queue works on a queue as expected"
+  (peek (append-this-to-queue (new-queue [1 2 3]) 9)) => 1
+  (peek (append-this-to-queue (new-queue [1 2 3]) [4 5 6])) => 1
+  )
+
+(fact "queue-from-items uses append-this to pile stuff onto a new queue"
+  (queue-from-items [1 2] 3 [4 5]) => [1 2 3 4 5]
+  (peek (queue-from-items [1 2] 3 [4 5])) => 1
+  (queue-from-items [1 2] 3 [4 [5]]) => [1 2 3 4 [5]]
+  (queue-from-items [1 2] '(3 4 5) false {:a 9} #{99 999}) =>
+    [1 2 3 4 5 false {:a 9} #{99 999}]
   )
 
 ;; interpreter
@@ -221,10 +255,51 @@
 
 ;; Qlosures on the queue
 
-(fact "stepping through a Qlosure on the interpreter"
-  (str (last (:queue (step (req-with [p 1 2 4]))))) => "«1+⦿»"
-  (:queue (step (step (req-with [p 1 2 4])))) => [3 4]
-  (:queue (step (step (step (req-with [p 1 2 4]))))) => [4 3]
+(defn readable-queue
+  "takes a ReQ interpreter and applies `map str` to its `:queue`"
+  [req]
+  (map str (:queue req))) 
+
+
+(fact "stepping through a Qlosure with no targets"
+  (readable-queue (step (req-with [p false]))) => ["false", "«+»"]
+  (readable-queue (step (req-with [p]))) => ["«+»"]
+)
+
+(fact "stepping further with a Qlosure on the interpreter"
+  (readable-queue (step (req-with [p 1 2 4 8]))) => ["2" "4" "8" "«1+⦿»"]
+  (:queue (step (step (req-with [p 1 2 4 8])))) => [4 8 3]
+  (:queue (step (step (step (req-with [p 1 2 4 8]))))) => [8 3 4]
   )
+
+(fact "stepping through with two Qlosures on the interpreter"
+  (let [two-ps (req-with [p 1 p 2 4 8])]
+    (str (last (:queue (step two-ps)))) => "«1+⦿»"
+    (readable-queue (step two-ps)) => ["«+»" "2" "4" "8" "«1+⦿»"]
+    (readable-queue (step (step two-ps))) => ["4" "8" "«1+⦿»" "«2+⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["«2+⦿»" "8" "5"]
+    (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]
+  ))
+
+(fact "stepping through with two Qlosures and skipped things in the interpreter"
+  (let [two-ps (req-with [p 1 p false 4 8])]
+    (readable-queue (step two-ps)) => ["«+»" "false" "4" "8" "«1+⦿»"]
+    (readable-queue (step (step two-ps))) => ["8" "«1+⦿»" "false" "«4+⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["false" "«4+⦿»" "9"]
+    (readable-queue (step (step (step (step two-ps))))) => ["«4+⦿»" "9" "false"]
+    (readable-queue (step (step (step (step (step two-ps)))))) =>
+      ["false" "13"]
+  ))
+
+
+;; the following is NOT correct for the final ReQ language spec: Qlosures should act as viable arguments for other Qlosures, if compatible
+; (fact "stepping through with two Qlosures on the interpreter"
+;   (let [two-ps (req-with [p p 1 2 4 8])]
+;     (readable-queue (step two-ps)) => ["2" "4" "8" "«+»" "«1+⦿»"]
+;     (readable-queue (step (step two-ps))) => ["«1+⦿»" "4" "8" "«2+⦿»"]
+;     (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
+;     (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]
+;   ))
+
 
 ;; nested Qlosures?
