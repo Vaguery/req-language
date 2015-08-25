@@ -302,4 +302,103 @@
 ;   ))
 
 
-;; nested Qlosures?
+;; exploratory work!
+
+;; more hideous things, since I need to de-hideous them all and maybe making a few more will help see how
+
+
+(defn make-arithmetic-qlosure
+  [token,operator]
+  (->Qlosure
+    token   
+    {:wants
+      {:num number?}
+    :transformations
+      {:num 
+        (fn [item]
+          (->Qlosure
+            (str item token "⦿")
+            {:wants {:num number?}
+             :transformations {:num (partial operator item)}}))
+       }}
+  ))
+
+(def «-» (make-arithmetic-qlosure "-" -)) 
+
+(fact "can I use that?"
+  (let [two-ps (req-with [«-» 1 «-» false 4 8])]
+    (readable-queue (step two-ps)) => ["«-»" "false" "4" "8" "«1-⦿»"]
+    (readable-queue (step (step two-ps))) => ["8" "«1-⦿»" "false" "«4-⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["false" "«4-⦿»" "-7"]
+    (readable-queue (step (step (step (step two-ps))))) => ["«4-⦿»" "-7" "false"]
+    (readable-queue (step (step (step (step (step two-ps)))))) =>
+      ["false" "11"]
+  ))
+
+(def «*» (make-arithmetic-qlosure "*" *)) 
+
+(fact "can I use both?"
+  (let [two-ps (req-with [«-» 1 «*» false 4 8])]
+    (readable-queue (step two-ps)) => ["«*»" "false" "4" "8" "«1-⦿»"]
+    (readable-queue (step (step two-ps))) => ["8" "«1-⦿»" "false" "«4*⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["false" "«4*⦿»" "-7"]
+    (readable-queue (step (step (step (step two-ps))))) => ["«4*⦿»" "-7" "false"]
+    (readable-queue (step (step (step (step (step two-ps)))))) =>
+      ["false" "-28"]
+  ))
+
+(defn boolean? [item] (or (false? item) (true? item)))
+
+(fact "boolean? works as expected"
+  (boolean? true) => true
+  (boolean? 19) => false
+  (boolean? []) => false
+  (boolean? nil) => false
+  )
+
+(defn make-binary-logical-qlosure
+  [token,operator]
+  (->Qlosure
+    token   
+    {:wants
+      {:bool boolean?}
+    :transformations
+      {:bool 
+        (fn [item]
+          (->Qlosure
+            (str item token "⦿")
+            {:wants {:bool boolean?}
+             :transformations {:bool (partial operator item)}}))
+       }}
+  ))
+
+(defn ∧
+  "badly-conceived pure 'boolean' binary logical AND function"
+  [arg1 arg2]
+  (and arg1 arg2)
+  )
+
+(defn ∨
+  "badly-conceived pure 'boolean' binary logical OR function"
+  [arg1 arg2]
+  (or arg1 arg2)
+  )
+
+
+(def «∧» (make-binary-logical-qlosure "∧" ∧)) 
+(def «∨» (make-binary-logical-qlosure "∨" ∨)) 
+
+
+(fact "can I use that?"
+  (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
+    (readable-queue (step two-ps)) =>
+      ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
+    (readable-queue (step (step two-ps))) =>
+      ["false" "«∨»" "true" "false" "true" "«true∧⦿»" "«true∨⦿»"]
+    (readable-queue (step (step (step two-ps)))) =>
+      ["true" "false" "true" "«true∧⦿»" "«true∨⦿»" "«false∨⦿»"]
+    (readable-queue (step (step (step (step two-ps))))) =>
+      ["«true∨⦿»" "«false∨⦿»" "false" "true" "true"]
+    (readable-queue (step (step (step (step (step two-ps)))))) =>
+      ["true" "true" "«false∨⦿»" "true"]
+  ))
