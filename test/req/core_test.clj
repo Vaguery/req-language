@@ -467,11 +467,4 @@
     (readable-queue (step (step (step (step two-ps))))) => ["8" "true"]
   ))
 
-;; can I extract the complex "transformation" part of this?
-
-; (fn [item]
-; (->Qlosure
-;   (str item token "⦿")
-;   {:wants match-pair
-;    :transformations {type-kw (partial operator item)}}))
-
+;; yup
