@@ -402,3 +402,74 @@
     (readable-queue (step (step (step (step (step two-ps)))))) =>
       ["true" "true" "«false∨⦿»" "true"]
   ))
+
+
+;; can I extract the type info as well?
+
+(def req-matchers
+  {
+    :num number?
+    :bool boolean?
+    :vec vector?})
+
+(defn make-binary-qlosure
+  [token,type-kw,operator]
+  (let [match-pair {type-kw (type-kw req-matchers)}]
+  (->Qlosure
+    token   
+    {:wants match-pair
+    :transformations
+      {type-kw 
+        (fn [item]
+          (->Qlosure
+            (str item token "⦿")
+            {:wants match-pair
+             :transformations {type-kw (partial operator item)}}))
+       }}
+  )))
+
+(def «∧» (make-binary-qlosure "∧" :bool ∧)) 
+(def «∨» (make-binary-qlosure "∨" :bool ∨)) 
+
+(fact "still usable?"
+  (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
+    (readable-queue (step two-ps)) =>
+      ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
+    (readable-queue (step (step two-ps))) =>
+      ["false" "«∨»" "true" "false" "true" "«true∧⦿»" "«true∨⦿»"]
+    (readable-queue (step (step (step two-ps)))) =>
+      ["true" "false" "true" "«true∧⦿»" "«true∨⦿»" "«false∨⦿»"]
+    (readable-queue (step (step (step (step two-ps))))) =>
+      ["«true∨⦿»" "«false∨⦿»" "false" "true" "true"]
+    (readable-queue (step (step (step (step (step two-ps)))))) =>
+      ["true" "true" "«false∨⦿»" "true"]
+  ))
+
+;; yup
+
+(def «*» (make-binary-qlosure "*" :num *)) 
+(def «-» (make-binary-qlosure "-" :num -)) 
+
+(fact "can I use both still?"
+  (let [two-ps (req-with [«-» 1 «*» false 4 8])]
+    (readable-queue (step two-ps)) => ["«*»" "false" "4" "8" "«1-⦿»"]
+    (readable-queue (step (step two-ps))) => ["8" "«1-⦿»" "false" "«4*⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["false" "«4*⦿»" "-7"]
+    (readable-queue (step (step (step (step two-ps))))) => ["«4*⦿»" "-7" "false"]
+    (readable-queue (step (step (step (step (step two-ps)))))) =>
+      ["false" "-28"]
+  ))
+
+;; yup
+
+;; can I make one from scratch?
+
+(def «≤» (make-binary-qlosure "≤" :num <=)) 
+
+(fact "can I use both still?"
+  (let [two-ps (req-with [«≤» 1 «∨» false 4 8])]
+    (readable-queue (step two-ps)) => ["«∨»" "false" "4" "8" "«1≤⦿»"]
+    (readable-queue (step (step two-ps))) => ["4" "8" "«1≤⦿»" "«false∨⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["«false∨⦿»" "8" "true"]
+    (readable-queue (step (step (step (step two-ps))))) => ["8" "true"]
+  ))
