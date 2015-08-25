@@ -115,7 +115,7 @@
 ;; Qlosure objects
 
 
-(defrecord Qlosure [token transitions]
+(defrecord Qlosure [token wants transitions]
   Object
   (toString [_] 
     (str "«" token "»")))
@@ -124,7 +124,7 @@
 (defn get-wants
   "returns the :wants table from a Qlosure item"
   [qlosure]
-  (get-in qlosure [:transitions :wants]))
+  (:wants qlosure))
 
 
 (defn req-wants
@@ -168,18 +168,18 @@
   (split-with (partial do-not-interact? actor) items))
 
 
-(defn get-transformation
-  "returns the indexed transformation from a Qlosure item"
+(defn get-transition
+  "returns the indexed transition from a Qlosure item"
   [qlosure item]
   (let [which (req-wants qlosure item)]
-    (which (get-in qlosure [:transitions :transformations]))
+    (which (:transitions qlosure))
     ))
 
 
 (defn req-consume
-  "applies an (unchecked) transformation from the actor onto the item arg"
+  "applies an (unchecked) transition from the actor onto the item arg"
   [actor item]
-  ((get-transformation actor item) item)
+  ((get-transition actor item) item)
   )
 
 
