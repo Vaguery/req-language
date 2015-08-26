@@ -18,6 +18,34 @@ That's it.
 
 Not working yet. Close, but the design is still emerging.
 
+### Done
+
+- ReQ interpreter as a Clojure record
+- queue
+- working sketch of partial application (using "Qlosure" records) for unary and some binary instructions
+- some imperative instructions (need to be reworked so they use `:self|` channel)
+
+### To Do
+
+- return type for Qlosures
+- nested Qlosures (consuming Qlosures as arguments, and capturing arguments)
+- mixed binary Qlosures
+- "gatherers": recursive Qlosures for collections
+- Channels
+- channel list in interpreter record
+- instruction definitions stored in interpreter record
+- `:self|` channel for imperative instructions
+- `«fork»` and other instructions for concurrency
+- search:
+    - random code generation
+    - rubrics
+    - crossover
+    - mutation
+    - hillclimbing
+    - lexicase selection
+- minimum viable release:
+    - working interpreter with: Channels; convenient ways to define new instructions and types; works for arbitrary instruction Qlosures (any number or type of arguments and return types); problem definition; training and test data; 
+
 ## Qlosures and how they interact
 
 Because I'm not a Computer Sciencer, I'm going to use the word "address" when speaking of what one token does to another in the `ReQ` language. This is something like "being compatible", and something like "being an argument for" and something like "recognizing", but to be honest I don't have a good word for the concept as sketched. Also I would be happy to accept improvements and suggestions.
