@@ -185,47 +185,48 @@
 
 
 (fact "split-with-interaction takes a sequential collection and splits it at the first item that interacts with the actor (arg 1)"
+  ;; we will use this to manage ReQ queues
   (fact "if there is no interaction, the first list contains everything"
     (split-with-interaction 3 [1 2 3 4 5 6]) => ['(1 2 3 4 5 6) '()])
-  (let [q (->Qlosure :foo {:int integer?, :vec vector?} {})]
-    (split-with-interaction q [1.2 3.4 5 67]) => ['(1.2 3.4) '(5 67)]
-    (split-with-interaction q [1.2 3.4 false 67]) => ['(1.2 3.4 false) '(67)]
-    (split-with-interaction q [1 2 3]) => ['() '(1 2 3)]
-    (split-with-interaction q [1.2 3.4 5/6]) => ['(1.2 3.4 5/6) '()]
+    (let [q (->Qlosure :foo {:int integer?, :vec vector?} {})]
+      (split-with-interaction q [1.2 3.4 5 67]) => ['(1.2 3.4) '(5 67)]
+      (split-with-interaction q [1.2 3.4 false 67]) => ['(1.2 3.4 false) '(67)]
+      (split-with-interaction q [1 2 3]) => ['() '(1 2 3)]
+      (split-with-interaction q [1.2 3.4 5/6]) => ['(1.2 3.4 5/6) '()]
 
-    (split-with-interaction 1.2 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67 ~q) '()]
-    (split-with-interaction 11 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67) `(~q)]
-    (split-with-interaction 11 [q q]) =>  [`() `(~q ~q)]
-  ))
+      (split-with-interaction 1.2 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67 ~q) '()]
+      (split-with-interaction 11 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67) `(~q)]
+      (split-with-interaction 11 [q q]) =>  [`() `(~q ~q)]
+    ))
 
-
-;; a hideous thing that needs to be fixed:
+;; Qlosure records
 
 (def p (->Qlosure
-            "+"                             
-            {:num number?, :vec vector?}      ;; wants
-            {:num                             ;; transitions
+            "+"                                 ;; token
+            {:num1 number?, :num2 number?,
+             :vec1 vector?, :vec2 vector?}      ;; wants
+            {:num1                              ;; transitions
               (fn [item]
                 (->Qlosure
                 (str item "+⦿")
-                {:num number?}
-                {:num (partial + item)}))
-             :vec
+                {:num2 number?}
+                {:num2 (partial + item)}))
+             :vec1
               (fn [item]
                 (->Qlosure
                 (str item "+⦿")
-                {:vec vector?}
-                {:vec (partial into item)}))}))
-                  
+                {:vec2 vector?}
+                {:vec2 (partial into item)}))}))
+
 
 (fact "this monstrous Qlosure object (and not very complicated one) can be used"
-  (req-wants p 11) => :num
-  (req-wants p [1 2 3]) => :vec
+  (req-wants p 11) => :num1
+  (req-wants p [1 2 3]) => :vec1
   )
 
 (fact "we can use get-transition to... well, you know"
-  (get-transition p 11) => (:num (:transitions p))
-  (get-transition p [11]) => (:vec (:transitions p))
+  (get-transition p 11) => (:num1 (:transitions p))
+  (get-transition p [11]) => (:vec1 (:transitions p))
   )
 
 (fact "req-consume applies the transformation from a Qlosure to an appropriate item"
@@ -252,24 +253,18 @@
 
 ;; Qlosures on the queue
 
-(defn readable-queue
-  "takes a ReQ interpreter and applies `map str` to its `:queue`"
-  [req]
-  (map str (:queue req))) 
-
-
-(fact "stepping through a Qlosure with no targets"
+(fact "a ReQ interpreter with a Qlosure with no targets just keeps it"
   (readable-queue (step (req-with [p false]))) => ["false", "«+»"]
   (readable-queue (step (req-with [p]))) => ["«+»"]
 )
 
-(fact "stepping further with a Qlosure on the interpreter"
+(fact "a Qlosure will consume the nearest argument and produce an intermediate"
   (readable-queue (step (req-with [p 1 2 4 8]))) => ["2" "4" "8" "«1+⦿»"]
   (:queue (step (step (req-with [p 1 2 4 8])))) => [4 8 3]
   (:queue (step (step (step (req-with [p 1 2 4 8]))))) => [8 3 4]
   )
 
-(fact "stepping through with two Qlosures on the interpreter"
+(fact "two Qlosure items will consume arguments according to the queue dynamics"
   (let [two-ps (req-with [p 1 p 2 4 8])]
     (str (last (:queue (step two-ps)))) => "«1+⦿»"
     (readable-queue (step two-ps)) => ["«+»" "2" "4" "8" "«1+⦿»"]
@@ -278,7 +273,7 @@
     (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]
   ))
 
-(fact "stepping through with two Qlosures and skipped things in the interpreter"
+(fact "Qlosure items will still skip (and requeue) unwanted items as needed"
   (let [two-ps (req-with [p 1 p false 4 8])]
     (readable-queue (step two-ps)) => ["«+»" "false" "4" "8" "«1+⦿»"]
     (readable-queue (step (step two-ps))) => ["8" "«1+⦿»" "false" "«4+⦿»"]
@@ -297,11 +292,6 @@
 ;     (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
 ;     (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]
 ;   ))
-
-
-;; exploratory work!
-
-;; more hideous things, since I need to de-hideous them all and maybe making a few more will help see how
 
 
 (defn make-arithmetic-qlosure
@@ -402,9 +392,11 @@
 
 (def req-matchers
   {
+    :int integer?
     :num number?
     :bool boolean?
-    :vec vector?})
+    :vec vector?
+    :any some?})
 
 (defn make-binary-qlosure
   [token,type-kw,operator]
@@ -468,3 +460,77 @@
   ))
 
 ;; yup
+
+;; let's explore more qlosure-makers
+
+(defn make-unary-qlosure
+  [token,type-kw,operator]
+  (let [match-pair {type-kw (type-kw req-matchers)}]
+  (->Qlosure
+    token   
+    match-pair
+    {type-kw (partial operator)})))
+
+(def «neg» (make-unary-qlosure "neg" :num -)) 
+
+(fact "can I use this thing?"
+  (let [negger (req-with [«neg» 1 «neg» false 4 8])]
+    (readable-queue (step negger)) => ["«neg»" "false" "4" "8" "-1"]
+    (readable-queue (step (step negger))) => ["8" "-1" "false" "-4"]
+  ))
+
+;; how about a more complex one?
+
+(def «neg-even?» (make-unary-qlosure "neg-even?" :int
+  (partial #(and (neg? %) (even? %)))))
+
+(fact "can I use this thing?"
+  (let [negger (req-with [«neg-even?» -1 «neg-even?» «neg-even?» false -4 8])]
+    (readable-queue (step negger)) =>
+      ["«neg-even?»" "«neg-even?»" "false" "-4" "8" "false"]
+    (readable-queue (step (step negger))) =>
+      ["8" "false" "«neg-even?»" "false" "true"]
+    (readable-queue (step (step (step negger)))) =>
+      ["false" "true" "false" "false"]
+  ))
+
+;; can we produce multiple returns?
+
+(def «3x» (make-unary-qlosure "3x" :any
+  (partial #(list % % %))))
+
+(fact "can I use this thing?"
+  (let [tripler (req-with [«3x» -1 «3x» «3x» false -4 8])]
+    (readable-queue (step tripler)) =>
+      ["«3x»" "«3x»" "false" "-4" "8" "-1" "-1" "-1"]
+    (readable-queue (step (step tripler))) =>
+      ["false" "-4" "8" "-1" "-1" "-1" "«3x»" "«3x»" "«3x»"]
+    (readable-queue (step (step (step tripler)))) =>
+      ["«3x»" "«3x»" "-4" "8" "-1" "-1" "-1" "false" "false" "false"]
+    (readable-queue (step (step (step (step tripler))))) =>
+      ["-4" "8" "-1" "-1" "-1" "false" "false" "false" "«3x»" "«3x»" "«3x»"]
+    (readable-queue (step (step (step (step (step tripler)))))) =>
+      ["«3x»" "«3x»" "8" "-1" "-1" "-1" "false" "false" "false" "-4" "-4" "-4"]
+      ;; and so on...
+  ))
+
+;; can I produce a vector return?
+
+(def «3xVec» (make-unary-qlosure "3xVec" :any
+  (partial #(list (vector % % %)))))
+
+(fact "can I use this thing?"
+  (let [tripler (req-with [«3xVec» -1 «3xVec» «3xVec» false -4 8])]
+    (readable-queue (step tripler)) =>
+      ["«3xVec»" "«3xVec»" "false" "-4" "8" "[-1 -1 -1]"]
+    ; (readable-queue (step (step tripler))) =>
+    ;   ["false" "-4" "8" "-1" "-1" "-1" "«3xVec»" "«3xVec»" "«3xVec»"]
+    ; (readable-queue (step (step (step tripler)))) =>
+    ;   ["«3xVec»" "«3xVec»" "-4" "8" "-1" "-1" "-1" "false" "false" "false"]
+    ; (readable-queue (step (step (step (step tripler))))) =>
+    ;   ["-4" "8" "-1" "-1" "-1" "false" "false" "false" "«3xVec»" "«3xVec»" "«3xVec»"]
+    ; (readable-queue (step (step (step (step (step tripler)))))) =>
+    ;   ["«3xVec»" "«3xVec»" "8" "-1" "-1" "-1" "false" "false" "false" "-4" "-4" "-4"]
+      ;; and so on...
+  ))
+

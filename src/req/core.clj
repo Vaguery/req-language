@@ -21,16 +21,20 @@
   (new-queue (reduce append-this-to-queue base more-items)))
 
 
-
 ;; interpreters
 
 (defrecord Interpreter [queue])
+
 
 (defn req-with
   "creates a new ReQinterpreter with the specified collection in its queue"
   [items] (Interpreter. (new-queue items)))
 
 
+(defn readable-queue
+  "takes a ReQ interpreter and applies `map str` to its `:queue`"
+  [req]
+  (map str (:queue req))) 
 
 ;; some instructions
 
