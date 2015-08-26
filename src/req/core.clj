@@ -124,6 +124,12 @@
   (toString [_] 
     (str "«" token "»")))
 
+(defn make-qlosure
+  "convenience function to create a Qlosure record with keyword labeled arguments"
+  [token & {:keys [wants transitions] :or {wants {} transitions {}}}]
+  (->Qlosure token wants transitions)
+  )
+
 
 (defn get-wants
   "returns the :wants table from a Qlosure item"

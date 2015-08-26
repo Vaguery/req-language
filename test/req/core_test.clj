@@ -117,19 +117,24 @@
 
 ;; Qlosures
 
-(fact "a Qlosure is created with a token,
-    which appears in guillemets when it's printed with (str …)"
-  (str (->Qlosure "+" :foo :bar)) => "«+»"
-  (str (->Qlosure "skeleton" :foo :bar)) => "«skeleton»"
-  (str (->Qlosure "9+_" :foo :bar)) => "«9+_»"
+(fact "make-qlosure is a convenience function with keywords and defaults"
+  (class (make-qlosure "foo")) => req.core.Qlosure
+  (:wants (make-qlosure "foo")) => {} ;; not nil
+  (:wants (make-qlosure "foo" :wants {:int integer?})) => {:int integer?}
+  (:transitions (make-qlosure "foo" :wants {:int integer?})) => {} ;; not nil
   )
 
-;; a Qlosure must also have :wants (map), :transitions (map) and :becomes (list)
-;;   attributes, and there should be a :transitions key for every :want key 
+(fact "a Qlosure is created with a token,
+    which appears in guillemets when it's printed with (str …)"
+  (str (make-qlosure "+")) => "«+»"
+  (str (make-qlosure "skeleton")) => "«skeleton»"
+  (str (make-qlosure "9+_")) => "«9+_»"
+  )
 
 
 (fact "get-wants produces the :wants component of a Qlosure's :transitions table"
-  (get-wants (->Qlosure "+" {:arg1 9} {})) => {:arg1 9}
+  (get-wants (make-qlosure "+")) => {}
+  (get-wants (make-qlosure "+" :wants {:arg1 9})) => {:arg1 9}
   )
 
 
@@ -138,7 +143,7 @@
   (req-wants 3 false) => false
   (req-wants [1 2] [false :g]) => false
 
-  (let [q (->Qlosure :foo {:int integer?, :float float?, :vec vector?} {})]
+  (let [q (make-qlosure :foo :wants {:int integer?, :float float?, :vec vector?})]
     (req-wants q 4) => truthy       ;; :int
     (req-wants q 4) => :int
 
@@ -157,7 +162,9 @@
   (can-interact? 3 4) => false
   (can-interact? 3 false) => false
   (can-interact? [1 2] [false :g]) => false
-  (let [q (->Qlosure :foo {:int integer?, :float float?, :vec vector?} {})]
+  (let [q (make-qlosure
+            "foo"
+            :wants {:int integer?, :float float?, :vec vector?})]
     (can-interact? q 4) => true
     (can-interact? 4 q) => true
     (can-interact? q q) => false
@@ -168,7 +175,8 @@
   (do-not-interact? 3 4) => true
   (do-not-interact? 3 false) => true
   (do-not-interact? [1 2] [false :g]) => true
-  (let [q (->Qlosure :foo {:int integer?, :float float?, :vec vector?} {})]
+  (let [q (make-qlosure "s"
+            :wants {:int integer?, :float float?, :vec vector?})]
     (do-not-interact? q 4) => false
     (do-not-interact? 4 q) => false
     (do-not-interact? q q) => true
@@ -176,7 +184,8 @@
 
 
 (fact "all-interacting-items returns everything in a collection that can interact with the (first arg) ReQ item"
-  (let [q (->Qlosure :foo {:int integer?, :float float?, :vec vector?} {})]
+  (let [q (make-qlosure :foo
+            :wants {:int integer?, :float float?, :vec vector?})]
     (all-interacting-items 3 [1 2 3 4 5 6]) => []
     (all-interacting-items q [1 nil -11 3.2 '(4)]) => [1 -11 3.2]
     (all-interacting-items q []) => []
@@ -188,7 +197,8 @@
   ;; we will use this to manage ReQ queues
   (fact "if there is no interaction, the first list contains everything"
     (split-with-interaction 3 [1 2 3 4 5 6]) => ['(1 2 3 4 5 6) '()])
-    (let [q (->Qlosure :foo {:int integer?, :vec vector?} {})]
+    (let [q (make-qlosure :foo
+              :wants {:int integer?, :vec vector?})]
       (split-with-interaction q [1.2 3.4 5 67]) => ['(1.2 3.4) '(5 67)]
       (split-with-interaction q [1.2 3.4 false 67]) => ['(1.2 3.4 false) '(67)]
       (split-with-interaction q [1 2 3]) => ['() '(1 2 3)]
@@ -199,24 +209,26 @@
       (split-with-interaction 11 [q q]) =>  [`() `(~q ~q)]
     ))
 
+
 ;; Qlosure records
 
-(def p (->Qlosure
-            "+"                                 ;; token
-            {:num1 number?, :num2 number?,
-             :vec1 vector?, :vec2 vector?}      ;; wants
-            {:num1                              ;; transitions
-              (fn [item]
-                (->Qlosure
-                (str item "+⦿")
-                {:num2 number?}
-                {:num2 (partial + item)}))
-             :vec1
-              (fn [item]
-                (->Qlosure
-                (str item "+⦿")
-                {:vec2 vector?}
-                {:vec2 (partial into item)}))}))
+(def p (make-qlosure
+            "+"                             
+            :wants
+               {:num1 number?, :num2 number?, :vec1 vector?, :vec2 vector?}     
+            :transitions
+              {:num1                              
+                (fn [item]
+                  (make-qlosure
+                    (str item "+⦿")
+                    :wants {:num2 number?}
+                    :transitions {:num2 (partial + item)}))
+               :vec1
+                (fn [item]
+                  (make-qlosure
+                    (str item "+⦿")
+                    :wants {:vec2 vector?}
+                    :transitions {:vec2 (partial into item)}))}))
 
 
 (fact "this monstrous Qlosure object (and not very complicated one) can be used"
@@ -296,16 +308,18 @@
 
 (defn make-arithmetic-qlosure
   [token,operator]
-  (->Qlosure
-    token   
-    {:num number?}
-    {:num 
-      (fn [item]
-        (->Qlosure
-          (str item token "⦿")
-          {:num number?}
-          {:num (partial operator item)}))
-       }
+  (make-qlosure
+    token
+    :wants
+      {:num number?}
+    :transitions
+      {:num 
+        (fn [item]
+          (->Qlosure
+            (str item token "⦿")
+            {:num number?}
+            {:num (partial operator item)}))
+         }
   ))
 
 (def «-» (make-arithmetic-qlosure "-" -')) 
@@ -344,16 +358,18 @@
 
 (defn make-binary-logical-qlosure
   [token,operator]
-  (->Qlosure
+  (make-qlosure
     token   
-    {:bool boolean?}
-    {:bool 
-      (fn [item]
-        (->Qlosure
-          (str item token "⦿")
-          {:bool boolean?}
-          {:bool (partial operator item)}))
-       }
+    :wants 
+      {:bool boolean?}
+    :transitions
+      {:bool 
+        (fn [item]
+          (->Qlosure
+            (str item token "⦿")
+            {:bool boolean?}
+            {:bool (partial operator item)}))
+         }
   ))
 
 (defn ∧
@@ -401,15 +417,15 @@
 (defn make-binary-qlosure
   [token,type-kw,operator]
   (let [match-pair {type-kw (type-kw req-matchers)}]
-  (->Qlosure
+  (make-qlosure
     token   
-    match-pair
-    {type-kw 
+    :wants match-pair
+    :transitions {type-kw 
       (fn [item]
-        (->Qlosure
+        (make-qlosure
           (str item token "⦿")
-          match-pair
-          {type-kw (partial operator item)}))
+          :wants match-pair
+          :transitions {type-kw (partial operator item)}))
        }
   )))
 
@@ -466,10 +482,10 @@
 (defn make-unary-qlosure
   [token,type-kw,operator]
   (let [match-pair {type-kw (type-kw req-matchers)}]
-  (->Qlosure
+  (make-qlosure
     token   
-    match-pair
-    {type-kw (partial operator)})))
+    :wants match-pair
+    :transitions {type-kw (partial operator)})))
 
 (def «neg» (make-unary-qlosure "neg" :num -)) 
 
