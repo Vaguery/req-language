@@ -248,3 +248,13 @@
       :else
         (assoc req :queue (conj tail hot)))
   ))
+
+(defn req-steps
+  "steps a ReQinterpreter into its future (producing a lazy sequence)"
+  [req]
+  (cons req (lazy-seq (req-steps (step req))))
+  )
+
+(defn nth-step
+  [req n]
+  (nth (req-steps req) n))

@@ -64,8 +64,13 @@
 
 (fact "calling step on an interpreter containing only literals will cycle them"
   (:queue (step (req-with [false 1.2 3]))) => [1.2 3 false]
-  ; (:queue (step (step (req-with [false 1.2 3])))) => [3 false 1.2]
   )
+
+(fact "the req-steps function produces a sequence of future steps"
+  (let [literal (req-with [false 1.2 3])]
+    (:queue (nth-step literal 1)) => [1.2 3 false]
+    (:queue (nth-step literal 2)) => [3 false 1.2]
+  ))
 
 ;; step: imperatives
 
@@ -287,12 +292,11 @@
 
 (fact "Qlosure items will still skip (and requeue) unwanted items as needed"
   (let [two-ps (req-with [p 1 p false 4 8])]
-    (readable-queue (step two-ps)) => ["«+»" "false" "4" "8" "«1+⦿»"]
-    (readable-queue (step (step two-ps))) => ["8" "«1+⦿»" "false" "«4+⦿»"]
-    (readable-queue (step (step (step two-ps)))) => ["false" "«4+⦿»" "9"]
-    (readable-queue (step (step (step (step two-ps))))) => ["«4+⦿»" "9" "false"]
-    (readable-queue (step (step (step (step (step two-ps)))))) =>
-      ["false" "13"]
+    (readable-queue (nth-step two-ps 1)) =>  ["«+»" "false" "4" "8" "«1+⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["8" "«1+⦿»" "false" "«4+⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["false" "«4+⦿»" "9"]
+    (readable-queue (nth-step two-ps 4)) =>  ["«4+⦿»" "9" "false"]
+    (readable-queue (nth-step two-ps 5)) =>  ["false" "13"]
   ))
 
 
@@ -326,24 +330,22 @@
 
 (fact "can I use that?"
   (let [two-ps (req-with [«-» 1 «-» false 4 8])]
-    (readable-queue (step two-ps)) => ["«-»" "false" "4" "8" "«1-⦿»"]
-    (readable-queue (step (step two-ps))) => ["8" "«1-⦿»" "false" "«4-⦿»"]
-    (readable-queue (step (step (step two-ps)))) => ["false" "«4-⦿»" "-7"]
-    (readable-queue (step (step (step (step two-ps))))) => ["«4-⦿»" "-7" "false"]
-    (readable-queue (step (step (step (step (step two-ps)))))) =>
-      ["false" "11"]
+    (readable-queue (nth-step two-ps 1)) =>  ["«-»" "false" "4" "8" "«1-⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4-⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["false" "«4-⦿»" "-7"]
+    (readable-queue (nth-step two-ps 4)) =>  ["«4-⦿»" "-7" "false"]
+    (readable-queue (nth-step two-ps 5)) =>  ["false" "11"]
   ))
 
 (def «*» (make-arithmetic-qlosure "*" *')) 
 
 (fact "can I use both?"
   (let [two-ps (req-with [«-» 1 «*» false 4 8])]
-    (readable-queue (step two-ps)) => ["«*»" "false" "4" "8" "«1-⦿»"]
-    (readable-queue (step (step two-ps))) => ["8" "«1-⦿»" "false" "«4*⦿»"]
-    (readable-queue (step (step (step two-ps)))) => ["false" "«4*⦿»" "-7"]
-    (readable-queue (step (step (step (step two-ps))))) => ["«4*⦿»" "-7" "false"]
-    (readable-queue (step (step (step (step (step two-ps)))))) =>
-      ["false" "-28"]
+    (readable-queue (nth-step two-ps 1)) =>  ["«*»" "false" "4" "8" "«1-⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4*⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["false" "«4*⦿»" "-7"]
+    (readable-queue (nth-step two-ps 4)) =>  ["«4*⦿»" "-7" "false"]
+    (readable-queue (nth-step two-ps 5)) =>  ["false" "-28"]
   ))
 
 (defn boolean? [item] (or (false? item) (true? item)))
@@ -391,15 +393,15 @@
 
 (fact "can I use that?"
   (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
-    (readable-queue (step two-ps)) =>
+    (readable-queue (nth-step two-ps 1)) => 
       ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
-    (readable-queue (step (step two-ps))) =>
+    (readable-queue (nth-step two-ps 2)) => 
       ["false" "«∨»" "true" "false" "true" "«true∧⦿»" "«true∨⦿»"]
-    (readable-queue (step (step (step two-ps)))) =>
+    (readable-queue (nth-step two-ps 3)) => 
       ["true" "false" "true" "«true∧⦿»" "«true∨⦿»" "«false∨⦿»"]
-    (readable-queue (step (step (step (step two-ps))))) =>
+    (readable-queue (nth-step two-ps 4)) => 
       ["«true∨⦿»" "«false∨⦿»" "false" "true" "true"]
-    (readable-queue (step (step (step (step (step two-ps)))))) =>
+    (readable-queue (nth-step two-ps 5)) => 
       ["true" "true" "«false∨⦿»" "true"]
   ))
 
@@ -434,15 +436,15 @@
 
 (fact "still usable?"
   (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
-    (readable-queue (step two-ps)) =>
+    (readable-queue (nth-step two-ps 1)) => 
       ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
-    (readable-queue (step (step two-ps))) =>
+    (readable-queue (nth-step two-ps 2)) => 
       ["false" "«∨»" "true" "false" "true" "«true∧⦿»" "«true∨⦿»"]
-    (readable-queue (step (step (step two-ps)))) =>
+    (readable-queue (nth-step two-ps 3)) => 
       ["true" "false" "true" "«true∧⦿»" "«true∨⦿»" "«false∨⦿»"]
-    (readable-queue (step (step (step (step two-ps))))) =>
+    (readable-queue (nth-step two-ps 4)) => 
       ["«true∨⦿»" "«false∨⦿»" "false" "true" "true"]
-    (readable-queue (step (step (step (step (step two-ps)))))) =>
+    (readable-queue (nth-step two-ps 5)) => 
       ["true" "true" "«false∨⦿»" "true"]
   ))
 
@@ -453,12 +455,11 @@
 
 (fact "can I use both still?"
   (let [two-ps (req-with [«-» 1 «*» false 4 8])]
-    (readable-queue (step two-ps)) => ["«*»" "false" "4" "8" "«1-⦿»"]
-    (readable-queue (step (step two-ps))) => ["8" "«1-⦿»" "false" "«4*⦿»"]
-    (readable-queue (step (step (step two-ps)))) => ["false" "«4*⦿»" "-7"]
-    (readable-queue (step (step (step (step two-ps))))) => ["«4*⦿»" "-7" "false"]
-    (readable-queue (step (step (step (step (step two-ps)))))) =>
-      ["false" "-28"]
+    (readable-queue (nth-step two-ps 1)) => ["«*»" "false" "4" "8" "«1-⦿»"]
+    (readable-queue (nth-step two-ps 2)) => ["8" "«1-⦿»" "false" "«4*⦿»"]
+    (readable-queue (nth-step two-ps 3)) => ["false" "«4*⦿»" "-7"]
+    (readable-queue (nth-step two-ps 4)) => ["«4*⦿»" "-7" "false"]
+    (readable-queue (nth-step two-ps 5)) => ["false" "-28"]
   ))
 
 ;; yup
@@ -517,17 +518,19 @@
 
 (fact "can I use this thing?"
   (let [tripler (req-with [«3x» -1 «3x» «3x» false -4 8])]
-    (readable-queue (step tripler)) =>
+    (readable-queue (nth-step tripler 1)) =>
       ["«3x»" "«3x»" "false" "-4" "8" "-1" "-1" "-1"]
-    (readable-queue (step (step tripler))) =>
+    (readable-queue (nth-step tripler 2)) =>
       ["false" "-4" "8" "-1" "-1" "-1" "«3x»" "«3x»" "«3x»"]
-    (readable-queue (step (step (step tripler)))) =>
+    (readable-queue (nth-step tripler 3)) =>
       ["«3x»" "«3x»" "-4" "8" "-1" "-1" "-1" "false" "false" "false"]
-    (readable-queue (step (step (step (step tripler))))) =>
+    (readable-queue (nth-step tripler 4)) =>
       ["-4" "8" "-1" "-1" "-1" "false" "false" "false" "«3x»" "«3x»" "«3x»"]
-    (readable-queue (step (step (step (step (step tripler)))))) =>
+    (readable-queue (nth-step tripler 5)) =>
       ["«3x»" "«3x»" "8" "-1" "-1" "-1" "false" "false" "false" "-4" "-4" "-4"]
       ;; and so on...
+    (readable-queue (nth-step tripler 32)) =>
+      ["-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "false" "false" "false" "false" "false" "false" "false" "false" "false" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "8" "8" "8" "8" "8" "8" "8" "8" "8" "«3x»" "«3x»" "«3x»"]
   ))
 
 ;; can I produce a vector return?
@@ -605,24 +608,23 @@
   (readable-queue (step (step (step (req-with [c false]))))) => ["false" "4"]
 )
 
-(def c (make-timer 2 5 :foo))
+(def c (make-timer 2 11 :foo))
 
 (fact "you weren't very interested in that, I can tell"
-  (readable-queue (req-with [c false])) =>
-    ["«timer:2-5»" "false"]
-  (readable-queue (step (req-with [c false]))) =>
-    ["false" "«timer:3-5»" ":foo"]
-  (readable-queue (step (step (req-with [c false])))) =>
-    ["«timer:3-5»" ":foo" "false"]
-  (readable-queue (step (step (step (req-with [c false]))))) =>
-    [":foo" "false" "«timer:4-5»" ":foo"]
-  (readable-queue (step (step (step (step (req-with [c false])))))) =>
-    ["false" "«timer:4-5»" ":foo" ":foo"]
-  (readable-queue (step (step (step (step (step (req-with [c false]))))))) =>
-    ["«timer:4-5»" ":foo" ":foo" "false"]
-  (readable-queue (step (step (step (step (step (step (req-with [c false])))))))) =>
-    [":foo" ":foo" "false" "5"]
-)
+  (let [timey (req-with [c false])]
+    (readable-queue (nth-step timey 0)) => ["«timer:2-11»" "false"]
+    (readable-queue (nth-step timey 1)) => ["false" "«timer:3-11»" ":foo"]
+    (readable-queue (nth-step timey 2)) => ["«timer:3-11»" ":foo" "false"]
+    (readable-queue (nth-step timey 3)) => [":foo" "false" "«timer:4-11»" ":foo"]
+    (readable-queue (nth-step timey 4)) => ["false" "«timer:4-11»" ":foo" ":foo"]
+    (readable-queue (nth-step timey 5)) => ["«timer:4-11»" ":foo" ":foo" "false"]
+    (readable-queue (nth-step timey 16)) =>
+      [":foo" ":foo" ":foo" "false" "«timer:7-11»" ":foo" ":foo"]
+    (readable-queue (nth-step timey 32)) =>
+      [":foo" ":foo" "false" "«timer:9-11»" ":foo" ":foo" ":foo" ":foo" ":foo"]
+    (readable-queue (nth-step timey 210)) =>
+      [":foo" ":foo" ":foo" "false" "11" ":foo" ":foo" ":foo" ":foo" ":foo"]
+))
 
 (defn make-looper
   [collection]
@@ -634,21 +636,13 @@
           (first collection))
   )))
 
-(def jenny (make-looper [8 6 7 5 3 0 9]))
+(def jenny (make-looper [9 0 3 5 7 6 8]))
 
 (fact "you weren't very interested in that, I can tell"
-  (readable-queue (req-with [jenny false])) =>
-    ["«[8 6 7 5 3 0 9]»" "false"]
-  (readable-queue (step (req-with [jenny false]))) =>
-    ["false" "«[6 7 5 3 0 9 8]»" "8"]
-  (readable-queue (step (step (req-with [jenny false])))) =>
-    ["«[6 7 5 3 0 9 8]»" "8" "false"]
-  (readable-queue (step (step (step (req-with [jenny false]))))) =>
-    ["8" "false" "«[7 5 3 0 9 8 6]»" "6"]
-  (readable-queue (step (step (step (step (req-with [jenny false])))))) =>
-    ["false" "«[7 5 3 0 9 8 6]»" "6" "8"]
-  (readable-queue (step (step (step (step (step (req-with [jenny false]))))))) =>
-    ["«[7 5 3 0 9 8 6]»" "6" "8" "false"]
-  (readable-queue (step (step (step (step (step (step (req-with [jenny false])))))))) =>
-    ["6" "8" "false" "«[5 3 0 9 8 6 7]»" "7"]
-)
+  (let [her-number (req-with [jenny false])]
+  (readable-queue (nth-step her-number 0 )) => ["«[9 0 3 5 7 6 8]»" "false"]
+  (readable-queue (nth-step her-number 1 )) => ["false" "«[0 3 5 7 6 8 9]»" "9"]
+  ;; ... much later ...
+  (readable-queue (nth-step her-number 1202 )) =>
+    ["8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "false" "«[8 9 0 3 5 7 6]»" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9"]
+))
