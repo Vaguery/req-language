@@ -28,6 +28,7 @@ Not working yet. Close, but the design is still emerging.
 
 ### Active development
 
+- immortal items
 - return type for Qlosures
 - nested Qlosures (consuming Qlosures as arguments, and capturing arguments)
 - mixed binary Qlosures

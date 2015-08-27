@@ -217,26 +217,28 @@
 
 ;; Qlosure records
 
-(def p (make-qlosure
-            "+"                             
-            :wants
-               {:num1 number?, :num2 number?, :vec1 vector?, :vec2 vector?}     
-            :transitions
-              {:num1                              
-                (fn [item]
-                  (make-qlosure
-                    (str item "+⦿")
-                    :wants {:num2 number?}
-                    :transitions {:num2 (partial + item)}))
-               :vec1
-                (fn [item]
-                  (make-qlosure
-                    (str item "+⦿")
-                    :wants {:vec2 vector?}
-                    :transitions {:vec2 (partial into item)}))}))
+(def p
+  "polymorphic 2-ary Qlosure implementing both :num addition and :vec concatenation"
+  (make-qlosure
+    "+"                             
+    :wants
+       {:num1 number?, :vec1 vector?}     
+    :transitions
+      {:num1                              
+        (fn [item]
+          (make-qlosure
+            (str item "+⦿")
+            :wants {:num2 number?}
+            :transitions {:num2 (partial + item)}))
+       :vec1
+        (fn [item]
+          (make-qlosure
+            (str item "+⦿")
+            :wants {:vec2 vector?}
+            :transitions {:vec2 (partial into item)}))}))
 
 
-(fact "this monstrous Qlosure object (and not very complicated one) can be used"
+(fact "because it has :wants, it can be checked for interactions as intended with req-wants"
   (req-wants p 11) => :num1
   (req-wants p [1 2 3]) => :vec1
   )
@@ -310,6 +312,8 @@
 ;   ))
 
 
+;; a simplifying constructor:
+
 (defn make-arithmetic-qlosure
   [token operator]
   (make-qlosure
@@ -326,9 +330,11 @@
          }
   ))
 
-(def «-» (make-arithmetic-qlosure "-" -')) 
+(def «-»
+  "2-ary Qlosure implementing (Clojure safe) :num subtraction"
+  (make-arithmetic-qlosure "-" -')) 
 
-(fact "can I use that?"
+(fact "an arithmetic Qlosure permits quick definition of 2-number ReQ math functions"
   (let [two-ps (req-with [«-» 1 «-» false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«-»" "false" "4" "8" "«1-⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4-⦿»"]
@@ -337,9 +343,11 @@
     (readable-queue (nth-step two-ps 5)) =>  ["false" "11"]
   ))
 
-(def «*» (make-arithmetic-qlosure "*" *')) 
+(def «*»
+  "2-ary Qlosure implementing (Clojure safe) :num multiplication"
+  (make-arithmetic-qlosure "*" *')) 
 
-(fact "can I use both?"
+(fact "each _instance_ of a 2-number ReQ math function acquires arguments independently as the interpreter steps forward"
   (let [two-ps (req-with [«-» 1 «*» false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«*»" "false" "4" "8" "«1-⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4*⦿»"]
@@ -348,15 +356,19 @@
     (readable-queue (nth-step two-ps 5)) =>  ["false" "-28"]
   ))
 
-(defn boolean? [item] (or (false? item) (true? item)))
 
-(fact "boolean? works as expected"
-  (boolean? true) => true
+;; the `boolean?` helper
+
+(fact "the ReQ `boolean` function checks _specifically_ for 'true and 'false only"
+  (boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
   (boolean? 19) => false
   (boolean? []) => false
   (boolean? nil) => false
   (boolean? (= 7 7)) => true
   )
+
+;; using the make-binary-logical-qlosure helper to create the boolean equivalent of arithmetic
+
 
 (defn make-binary-logical-qlosure
   [token operator]
@@ -374,24 +386,15 @@
          }
   ))
 
-(defn ∧
-  "badly-conceived pure 'boolean' binary logical AND function"
-  [arg1 arg2]
-  (and arg1 arg2)
-  )
+(def «∧»
+  "2-ary Qlosure implementing :bool AND"
+  (make-binary-logical-qlosure "∧" ∧))
 
-(defn ∨
-  "badly-conceived pure 'boolean' binary logical OR function"
-  [arg1 arg2]
-  (or arg1 arg2)
-  )
+(def «∨»
+  "2-ary Qlosure implementing :bool OR"
+  (make-binary-logical-qlosure "∨" ∨)) 
 
-
-(def «∧» (make-binary-logical-qlosure "∧" ∧)) 
-(def «∨» (make-binary-logical-qlosure "∨" ∨)) 
-
-
-(fact "can I use that?"
+(fact "these «∧» and «∨» Qlosures implement binary boolean AND and OR respectively"
   (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
     (readable-queue (nth-step two-ps 1)) => 
       ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
@@ -406,35 +409,19 @@
   ))
 
 
-;; can I extract the type info as well?
+;; using the arithmetic and boolean examples, the core `make-binary-one-type-qlosure`
+;; function will build any Qlosure with same-typed arguments quickly
 
-(def req-matchers
-  {
-    :int integer?
-    :num number?
-    :bool boolean?
-    :vec vector?
-    :any some?})
 
-(defn make-binary-qlosure
-  [token type-kw operator]
-  (let [match-pair {type-kw (type-kw req-matchers)}]
-  (make-qlosure
-    token   
-    :wants match-pair
-    :transitions {type-kw 
-      (fn [item]
-        (make-qlosure
-          (str item token "⦿")
-          :wants match-pair
-          :transitions {type-kw (partial operator item)}))
-       }
-  )))
+(def «∧»
+  "2-ary Qlosure implementing :bool AND"
+  (make-binary-one-type-qlosure "∧" :bool ∧)) 
+(def «∨»
+  "2-ary Qlosure implementing :bool OR"
+  (make-binary-one-type-qlosure "∨" :bool ∨)) 
 
-(def «∧» (make-binary-qlosure "∧" :bool ∧)) 
-(def «∨» (make-binary-qlosure "∨" :bool ∨)) 
 
-(fact "still usable?"
+(fact "these new definitions still implement boolean AND and OR, respectively"
   (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
     (readable-queue (nth-step two-ps 1)) => 
       ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
@@ -448,12 +435,17 @@
       ["true" "true" "«false∨⦿»" "true"]
   ))
 
-;; yup
 
-(def «*» (make-binary-qlosure "*" :num *)) 
-(def «-» (make-binary-qlosure "-" :num -)) 
+(def «*»
+  "binary Qlosure implementing (Clojure safe) multiplication"
+  (make-binary-one-type-qlosure "*" :num *'))
 
-(fact "can I use both still?"
+(def «-»
+  "binary Qlosure implementing (Clojure safe) subtraction"
+  (make-binary-one-type-qlosure "-" :num -')) 
+
+
+(fact "the `make-binary-one-type-qlosure` function works for arithmetic too"
   (let [two-ps (req-with [«-» 1 «*» false 4 8])]
     (readable-queue (nth-step two-ps 1)) => ["«*»" "false" "4" "8" "«1-⦿»"]
     (readable-queue (nth-step two-ps 2)) => ["8" "«1-⦿»" "false" "«4*⦿»"]
@@ -462,13 +454,13 @@
     (readable-queue (nth-step two-ps 5)) => ["false" "-28"]
   ))
 
-;; yup
 
-;; can I make one from scratch?
+(def «≤»
+  "binary Qlosure returns :bool based on whether its 2 :num arguments satisfy (arg1 ≤ arg2)"
+  (make-binary-one-type-qlosure "≤" :num <=)) 
 
-(def «≤» (make-binary-qlosure "≤" :num <=)) 
 
-(fact "can I use both still?"
+(fact "`make-binary-one-type-qlosure` works for ad hoc definitions, too"
   (let [two-ps (req-with [«≤» 1 «∨» false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«∨»" "false" "4" "8" "«1≤⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1≤⦿»" "«false∨⦿»"]
@@ -476,32 +468,26 @@
     (readable-queue (nth-step two-ps 4)) =>  ["8" "true"]
   ))
 
-;; yup
+;; more Qlosure-making helper functions: `make-unary-qlosure`
 
-;; let's explore more qlosure-makers
+(def «neg»
+  "defines a Qlosure that negates a single :num argument"
+  (make-unary-qlosure "neg" :num -)) 
 
-(defn make-unary-qlosure
-  [token type-kw operator]
-  (let [match-pair {type-kw (type-kw req-matchers)}]
-  (make-qlosure
-    token   
-    :wants match-pair
-    :transitions {type-kw (partial operator)})))
-
-(def «neg» (make-unary-qlosure "neg" :num -)) 
-
-(fact "can I use this thing?"
+(fact "a unary Qlosure can be built wit `make-unary-qlosure"
   (let [negger (req-with [«neg» 1 «neg» false 4 8])]
     (readable-queue (nth-step negger 1)) =>  ["«neg»" "false" "4" "8" "-1"]
     (readable-queue (nth-step negger 2)) =>  ["8" "-1" "false" "-4"]
   ))
 
-;; how about a more complex one?
 
-(def «neg-even?» (make-unary-qlosure "neg-even?" :int
+(def «neg-even?»
+  "creates a Qlosure that answers `true` if its :int argument is negative AND even"
+  (make-unary-qlosure "neg-even?" :int
   (partial #(and (neg? %) (even? %)))))
 
-(fact "can I use this thing?"
+
+(fact "unique ad hoc unary qlosures can also be made and used"
   (let [negger (req-with [«neg-even?» -1 «neg-even?» «neg-even?» false -4 8])]
     (readable-queue (nth-step negger 1)) =>  
       ["«neg-even?»" "«neg-even?»" "false" "-4" "8" "false"]
@@ -511,12 +497,15 @@
       ["false" "true" "false" "false"]
   ))
 
-;; can we produce multiple returns?
+;; multiple result values
 
-(def «3x» (make-unary-qlosure "3x" :any
+(def «3x»
+  "a 1-ary Qlosure which produces three copies of its :any argument"
+  (make-unary-qlosure "3x" :any
   (partial #(list % % %))))
 
-(fact "can I use this thing?"
+
+(fact "multiple return values (returned as a Clojure list) are pushed onto the queue"
   (let [tripler (req-with [«3x» -1 «3x» «3x» false -4 8])]
     (readable-queue (nth-step tripler 1)) =>
       ["«3x»" "«3x»" "false" "-4" "8" "-1" "-1" "-1"]
@@ -533,12 +522,15 @@
       ["-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "false" "false" "false" "false" "false" "false" "false" "false" "false" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "8" "8" "8" "8" "8" "8" "8" "8" "8" "«3x»" "«3x»" "«3x»"]
   ))
 
-;; can I produce a vector return?
 
-(def «3xVec» (make-unary-qlosure "3xVec" :any
+(def «3xVec»
+  "1-ary Qlosure which produces a Clojure vector containing 3x copies of its :any arg"
+  (make-unary-qlosure "3xVec" :any
   (partial #(list (vector % % %)))))
 
-(fact "can I use this thing?"
+
+(fact "for a collection result to be handled correctly by the ReQ interpreter,
+  the :transition function should wrap it in a list"
   (let [tripler (req-with [«3xVec» -1  false «3xVec» -4 «3xVec» 8])]
     (readable-queue (step tripler)) =>
       ["false" "«3xVec»" "-4" "«3xVec»" "8" "[-1 -1 -1]"]
@@ -548,69 +540,59 @@
       ["8" "[-1 -1 -1]" "[false false false]" "[-4 -4 -4]"]
   ))
 
-;; yup, by wrapping the returned vector in a list
 
-;; what about nullary functions? ()
-;; turns out they can't work the same way; Qlosures by design need at least one argument, and there is no "self"
+;; Nullary items
 
 (fact "a Nullary has a token it shows when printed, like a Qlosure"
-  (str (make-nullary "+" nil)) => "«+»"
+  (str (make-nullary "beep" nil)) => "«beep»"
   )
 
-(def rnd (make-nullary "29" (fn [] 29))) ;; no, this is NOT an exciting example
+
+(def silly
+  "a Nullary which produces the number 29 when executed"
+  (make-nullary "29" (constantly 29))) ;; definitely NOT an exciting example!
+
 
 (fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
-  (readable-queue (req-with [rnd false])) => ["«29»" "false"]
-  (readable-queue (step (req-with [rnd false]))) => ["false" "29"]
+  (readable-queue (req-with [silly false])) => ["«29»" "false"]
+  (readable-queue (step (req-with [silly false]))) => ["false" "29"]
   )
 
-(defn make-seed
-  "creates a Nullary which emits its contents and persists"
-  [token contents]
-  (make-nullary
-    token
-    (fn [] (list (make-seed token contents) contents))))
+;; Nullary "seeds"
 
-(def eights (make-seed "8s" 8)) ;; aha
+(def eights
+  "a Nullary which produces itself and a number 8 every time it's executed"
+  (make-seed "8s" 8))
+
 
 (fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
-  (readable-queue (req-with [eights false])) => ["«8s»" "false"]
-  (readable-queue (step (req-with [eights false]))) => ["false" "«8s»" "8"]
-  (readable-queue (step (step (req-with [eights false])))) =>
-    ["«8s»" "8" "false"]
-  (readable-queue (step (step (step (req-with [eights false]))))) =>
-    ["8" "false" "«8s»" "8"]
-  )
+  (let [eighty (req-with [eights false])]
+    (readable-queue eighty) => ["«8s»" "false"]
+    (readable-queue (step eighty)) => ["false" "«8s»" "8"]
+    (readable-queue (nth-step eighty 2)) => ["«8s»" "8" "false"]
+    (readable-queue (nth-step eighty 3)) => ["8" "false" "«8s»" "8"]
+  ))
 
-(defn make-timer
-  ([state end]
-    (make-nullary
-      (str "timer:" state "-" end)
-      (fn [] 
-        (if (>= (inc state) end)
-          end
-          (make-timer (inc state) end)))))
-  ([state end contents]
-    (make-nullary
-      (str "timer:" state "-" end)
-      (fn [] 
-        (if (>= (inc state) end)
-        end
-        (list (make-timer (inc state) end contents) contents))))))
+;; Nullary "timers"
 
+(def c
+  "a simple timer that counts from 2 to 4, then disappears and becomes 4"
+  (make-timer 2 4))
 
-(def c (make-timer 2 4))
-
-(fact "a Nullary can be used to make a timer-like thing"
+(fact "a Nullary timer advances at every execution, and eventually becomes its end value"
   (readable-queue (req-with [c false])) => ["«timer:2-4»" "false"]
   (readable-queue (step (req-with [c false]))) => ["false" "«timer:3-4»"]
   (readable-queue (step (step (req-with [c false])))) => ["«timer:3-4»" "false"]
   (readable-queue (step (step (step (req-with [c false]))))) => ["false" "4"]
 )
 
-(def c (make-timer 2 11 :foo))
 
-(fact "you weren't very interested in that, I can tell"
+(def c
+  "a Nullary timer with a payload: it emits :foo on every execution"
+  (make-timer 2 11 :foo))
+
+
+(fact "a Nullary timer with a payload emits its payload every cycle, then dissolves"
   (let [timey (req-with [c false])]
     (readable-queue (nth-step timey 0)) => ["«timer:2-11»" "false"]
     (readable-queue (nth-step timey 1)) => ["false" "«timer:3-11»" ":foo"]
@@ -626,23 +608,18 @@
       [":foo" ":foo" ":foo" "false" "11" ":foo" ":foo" ":foo" ":foo" ":foo"]
 ))
 
-(defn make-looper
-  [collection]
-    (make-nullary
-      (str collection)
-      (fn [] 
-        (list 
-          (make-looper (into [] (concat (drop 1 collection) (take 1 collection))))
-          (first collection))
-  )))
+;; Nullary loopers
 
-(def jenny (make-looper [9 0 3 5 7 6 8]))
+(def jenny
+  "a Nullary looper that eternally cycles through its vector contents, emitting the top item each step"
+  (make-looper [9 0 3 5 7 6 8]))
 
-(fact "you weren't very interested in that, I can tell"
+
+(fact "a Nullary looper cycles its (sequence) payload, emitting the top item each step"
   (let [her-number (req-with [jenny false])]
-  (readable-queue (nth-step her-number 0 )) => ["«[9 0 3 5 7 6 8]»" "false"]
-  (readable-queue (nth-step her-number 1 )) => ["false" "«[0 3 5 7 6 8 9]»" "9"]
-  ;; ... much later ...
-  (readable-queue (nth-step her-number 1202 )) =>
-    ["8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "false" "«[8 9 0 3 5 7 6]»" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9"]
+    (readable-queue (nth-step her-number 0 )) => ["«[9 0 3 5 7 6 8]»" "false"]
+    (readable-queue (nth-step her-number 1 )) => ["false" "«[0 3 5 7 6 8 9]»" "9"]
+    ;; ... much later ...
+    (readable-queue (nth-step her-number 1202 )) =>
+      ["8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "false" "«[8 9 0 3 5 7 6]»" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9"]
 ))
