@@ -21,17 +21,21 @@ Not working yet. Close, but the design is still emerging.
 ### Done
 
 - ReQ interpreter as a Clojure record
-- queue
+- queue works as designed
 - working sketch of partial application (using "Qlosure" records) for unary and some binary instructions
 - some imperative instructions (need to be reworked so they use `:self|` channel)
+- Added a simple framework for creating "Nullary" items, which run an arity-0 function whenever they're in the hot seat. These will be useful in creating persistent values consumed as arguments by other functions
 
-### To Do
+### Active development
 
 - return type for Qlosures
 - nested Qlosures (consuming Qlosures as arguments, and capturing arguments)
 - mixed binary Qlosures
 - "gatherers": recursive Qlosures for collections
 - Channels
+
+### To Do
+
 - channel list in interpreter record
 - instruction definitions stored in interpreter record
 - `:self|` channel for imperative instructions
