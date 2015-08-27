@@ -234,7 +234,7 @@
         popped-state (req-with tail)]
     (cond
       (= (type hot) Nullary)
-        (req-with (queue-from-items tail (apply (:function hot) nil)))
+        (req-with (queue-from-items tail ((:function hot))))
       (contains? req-imperatives hot)
         ((hot req-imperatives) popped-state)
       (seq (all-interacting-items hot tail))
