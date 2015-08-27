@@ -339,7 +339,7 @@
           (first collection))
   )))
 
-;; core functions
+;; boolean functions (to be moved to a new file eventually)
 
 (defn ∧
   "badly-conceived pure 'boolean' binary logical AND function"
