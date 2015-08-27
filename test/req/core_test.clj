@@ -284,10 +284,10 @@
 (fact "two Qlosure items will consume arguments according to the queue dynamics"
   (let [two-ps (req-with [p 1 p 2 4 8])]
     (str (last (:queue (step two-ps)))) => "«1+⦿»"
-    (readable-queue (step two-ps)) => ["«+»" "2" "4" "8" "«1+⦿»"]
-    (readable-queue (step (step two-ps))) => ["4" "8" "«1+⦿»" "«2+⦿»"]
-    (readable-queue (step (step (step two-ps)))) => ["«2+⦿»" "8" "5"]
-    (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]
+    (readable-queue (nth-step two-ps 1)) =>  ["«+»" "2" "4" "8" "«1+⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1+⦿»" "«2+⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["«2+⦿»" "8" "5"]
+    (readable-queue (nth-step two-ps 4)) =>  ["5" "10"]
   ))
 
 (fact "Qlosure items will still skip (and requeue) unwanted items as needed"
@@ -470,10 +470,10 @@
 
 (fact "can I use both still?"
   (let [two-ps (req-with [«≤» 1 «∨» false 4 8])]
-    (readable-queue (step two-ps)) => ["«∨»" "false" "4" "8" "«1≤⦿»"]
-    (readable-queue (step (step two-ps))) => ["4" "8" "«1≤⦿»" "«false∨⦿»"]
-    (readable-queue (step (step (step two-ps)))) => ["«false∨⦿»" "8" "true"]
-    (readable-queue (step (step (step (step two-ps))))) => ["8" "true"]
+    (readable-queue (nth-step two-ps 1)) =>  ["«∨»" "false" "4" "8" "«1≤⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1≤⦿»" "«false∨⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["«false∨⦿»" "8" "true"]
+    (readable-queue (nth-step two-ps 4)) =>  ["8" "true"]
   ))
 
 ;; yup
@@ -492,8 +492,8 @@
 
 (fact "can I use this thing?"
   (let [negger (req-with [«neg» 1 «neg» false 4 8])]
-    (readable-queue (step negger)) => ["«neg»" "false" "4" "8" "-1"]
-    (readable-queue (step (step negger))) => ["8" "-1" "false" "-4"]
+    (readable-queue (nth-step negger 1)) =>  ["«neg»" "false" "4" "8" "-1"]
+    (readable-queue (nth-step negger 2)) =>  ["8" "-1" "false" "-4"]
   ))
 
 ;; how about a more complex one?
@@ -503,11 +503,11 @@
 
 (fact "can I use this thing?"
   (let [negger (req-with [«neg-even?» -1 «neg-even?» «neg-even?» false -4 8])]
-    (readable-queue (step negger)) =>
+    (readable-queue (nth-step negger 1)) =>  
       ["«neg-even?»" "«neg-even?»" "false" "-4" "8" "false"]
-    (readable-queue (step (step negger))) =>
+    (readable-queue (nth-step negger 2)) =>  
       ["8" "false" "«neg-even?»" "false" "true"]
-    (readable-queue (step (step (step negger)))) =>
+    (readable-queue (nth-step negger 3)) =>  
       ["false" "true" "false" "false"]
   ))
 
@@ -542,9 +542,9 @@
   (let [tripler (req-with [«3xVec» -1  false «3xVec» -4 «3xVec» 8])]
     (readable-queue (step tripler)) =>
       ["false" "«3xVec»" "-4" "«3xVec»" "8" "[-1 -1 -1]"]
-    (readable-queue (step (step tripler))) =>
+    (readable-queue (nth-step tripler 2)) =>  
       ["-4" "«3xVec»" "8" "[-1 -1 -1]" "[false false false]"]
-    (readable-queue (step (step (step tripler)))) =>
+    (readable-queue (nth-step tripler 3)) =>  
       ["8" "[-1 -1 -1]" "[false false false]" "[-4 -4 -4]"]
   ))
 
