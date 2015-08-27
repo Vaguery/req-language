@@ -307,7 +307,7 @@
 
 
 (defn make-arithmetic-qlosure
-  [token,operator]
+  [token operator]
   (make-qlosure
     token
     :wants
@@ -315,10 +315,10 @@
     :transitions
       {:num 
         (fn [item]
-          (->Qlosure
+          (make-qlosure
             (str item token "⦿")
-            {:num number?}
-            {:num (partial operator item)}))
+            :wants {:num number?}
+            :transitions {:num (partial operator item)}))
          }
   ))
 
@@ -357,7 +357,7 @@
   )
 
 (defn make-binary-logical-qlosure
-  [token,operator]
+  [token operator]
   (make-qlosure
     token   
     :wants 
@@ -365,10 +365,10 @@
     :transitions
       {:bool 
         (fn [item]
-          (->Qlosure
-            (str item token "⦿")
-            {:bool boolean?}
-            {:bool (partial operator item)}))
+          (make-qlosure
+              (str item token "⦿")
+              :wants {:bool boolean?}
+              :transitions {:bool (partial operator item)}))
          }
   ))
 
@@ -415,7 +415,7 @@
     :any some?})
 
 (defn make-binary-qlosure
-  [token,type-kw,operator]
+  [token type-kw operator]
   (let [match-pair {type-kw (type-kw req-matchers)}]
   (make-qlosure
     token   
@@ -480,7 +480,7 @@
 ;; let's explore more qlosure-makers
 
 (defn make-unary-qlosure
-  [token,type-kw,operator]
+  [token type-kw operator]
   (let [match-pair {type-kw (type-kw req-matchers)}]
   (make-qlosure
     token   
@@ -536,17 +536,119 @@
   (partial #(list (vector % % %)))))
 
 (fact "can I use this thing?"
-  (let [tripler (req-with [«3xVec» -1 «3xVec» «3xVec» false -4 8])]
+  (let [tripler (req-with [«3xVec» -1  false «3xVec» -4 «3xVec» 8])]
     (readable-queue (step tripler)) =>
-      ["«3xVec»" "«3xVec»" "false" "-4" "8" "[-1 -1 -1]"]
-    ; (readable-queue (step (step tripler))) =>
-    ;   ["false" "-4" "8" "-1" "-1" "-1" "«3xVec»" "«3xVec»" "«3xVec»"]
-    ; (readable-queue (step (step (step tripler)))) =>
-    ;   ["«3xVec»" "«3xVec»" "-4" "8" "-1" "-1" "-1" "false" "false" "false"]
-    ; (readable-queue (step (step (step (step tripler))))) =>
-    ;   ["-4" "8" "-1" "-1" "-1" "false" "false" "false" "«3xVec»" "«3xVec»" "«3xVec»"]
-    ; (readable-queue (step (step (step (step (step tripler)))))) =>
-    ;   ["«3xVec»" "«3xVec»" "8" "-1" "-1" "-1" "false" "false" "false" "-4" "-4" "-4"]
-      ;; and so on...
+      ["false" "«3xVec»" "-4" "«3xVec»" "8" "[-1 -1 -1]"]
+    (readable-queue (step (step tripler))) =>
+      ["-4" "«3xVec»" "8" "[-1 -1 -1]" "[false false false]"]
+    (readable-queue (step (step (step tripler)))) =>
+      ["8" "[-1 -1 -1]" "[false false false]" "[-4 -4 -4]"]
   ))
 
+;; yup, by wrapping the returned vector in a list
+
+;; what about nullary functions? ()
+;; turns out they can't work the same way; Qlosures by design need at least one argument, and there is no "self"
+
+(fact "a Nullary has a token it shows when printed, like a Qlosure"
+  (str (make-nullary "+" nil)) => "«+»"
+  )
+
+(def rnd (make-nullary "29" (fn [] 29))) ;; no, this is NOT an exciting example
+
+(fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
+  (readable-queue (req-with [rnd false])) => ["«29»" "false"]
+  (readable-queue (step (req-with [rnd false]))) => ["false" "29"]
+  )
+
+(defn make-seed
+  "creates a Nullary which emits its contents and persists"
+  [token contents]
+  (make-nullary
+    token
+    (fn [] (list (make-seed token contents) contents))))
+
+(def eights (make-seed "8s" 8)) ;; aha
+
+(fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
+  (readable-queue (req-with [eights false])) => ["«8s»" "false"]
+  (readable-queue (step (req-with [eights false]))) => ["false" "«8s»" "8"]
+  (readable-queue (step (step (req-with [eights false])))) =>
+    ["«8s»" "8" "false"]
+  (readable-queue (step (step (step (req-with [eights false]))))) =>
+    ["8" "false" "«8s»" "8"]
+  )
+
+(defn make-timer
+  ([state end]
+    (make-nullary
+      (str "timer:" state "-" end)
+      (fn [] 
+        (if (>= (inc state) end)
+          end
+          (make-timer (inc state) end)))))
+  ([state end contents]
+    (make-nullary
+      (str "timer:" state "-" end)
+      (fn [] 
+        (if (>= (inc state) end)
+        end
+        (list (make-timer (inc state) end contents) contents))))))
+
+
+(def c (make-timer 2 4))
+
+(fact "a Nullary can be used to make a timer-like thing"
+  (readable-queue (req-with [c false])) => ["«timer:2-4»" "false"]
+  (readable-queue (step (req-with [c false]))) => ["false" "«timer:3-4»"]
+  (readable-queue (step (step (req-with [c false])))) => ["«timer:3-4»" "false"]
+  (readable-queue (step (step (step (req-with [c false]))))) => ["false" "4"]
+)
+
+(def c (make-timer 2 5 :foo))
+
+(fact "you weren't very interested in that, I can tell"
+  (readable-queue (req-with [c false])) =>
+    ["«timer:2-5»" "false"]
+  (readable-queue (step (req-with [c false]))) =>
+    ["false" "«timer:3-5»" ":foo"]
+  (readable-queue (step (step (req-with [c false])))) =>
+    ["«timer:3-5»" ":foo" "false"]
+  (readable-queue (step (step (step (req-with [c false]))))) =>
+    [":foo" "false" "«timer:4-5»" ":foo"]
+  (readable-queue (step (step (step (step (req-with [c false])))))) =>
+    ["false" "«timer:4-5»" ":foo" ":foo"]
+  (readable-queue (step (step (step (step (step (req-with [c false]))))))) =>
+    ["«timer:4-5»" ":foo" ":foo" "false"]
+  (readable-queue (step (step (step (step (step (step (req-with [c false])))))))) =>
+    [":foo" ":foo" "false" "5"]
+)
+
+(defn make-looper
+  [collection]
+    (make-nullary
+      (str collection)
+      (fn [] 
+        (list 
+          (make-looper (into [] (concat (drop 1 collection) (take 1 collection))))
+          (first collection))
+  )))
+
+(def jenny (make-looper [8 6 7 5 3 0 9]))
+
+(fact "you weren't very interested in that, I can tell"
+  (readable-queue (req-with [jenny false])) =>
+    ["«[8 6 7 5 3 0 9]»" "false"]
+  (readable-queue (step (req-with [jenny false]))) =>
+    ["false" "«[6 7 5 3 0 9 8]»" "8"]
+  (readable-queue (step (step (req-with [jenny false])))) =>
+    ["«[6 7 5 3 0 9 8]»" "8" "false"]
+  (readable-queue (step (step (step (req-with [jenny false]))))) =>
+    ["8" "false" "«[7 5 3 0 9 8 6]»" "6"]
+  (readable-queue (step (step (step (step (req-with [jenny false])))))) =>
+    ["false" "«[7 5 3 0 9 8 6]»" "6" "8"]
+  (readable-queue (step (step (step (step (step (req-with [jenny false]))))))) =>
+    ["«[7 5 3 0 9 8 6]»" "6" "8" "false"]
+  (readable-queue (step (step (step (step (step (step (req-with [jenny false])))))))) =>
+    ["6" "8" "false" "«[5 3 0 9 8 6 7]»" "7"]
+)

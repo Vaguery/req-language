@@ -201,7 +201,14 @@
     (req-consume item1 item2)
     (req-consume item2 item1)))
 
+;; Nullary items ("Qlosures with no arguments")
 
+(defrecord Nullary [token function]
+  Object
+    (toString [_] (str "«" token "»")))
+
+(defn make-nullary [token function]
+  (->Nullary token function))
 
 ;; interpreter stepping
 
@@ -226,6 +233,8 @@
         tail (pop (:queue req))
         popped-state (req-with tail)]
     (cond
+      (= (type hot) Nullary)
+        (req-with (queue-from-items tail (apply (:function hot) nil)))
       (contains? req-imperatives hot)
         ((hot req-imperatives) popped-state)
       (seq (all-interacting-items hot tail))
