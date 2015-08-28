@@ -115,19 +115,57 @@
       (assoc req :queue (conj (pop (pop q)) item-2 item-1))))
     ))
 
+;; Immortal items
+
+(defrecord Immortal [value]
+  Object
+  (toString [_] 
+    (str value "⥀")))
+
+
+(defn immortal?
+  "returns true if the argument is an Immortal record"
+  [item]
+  (= (class item) req.core.Immortal))
+
+
 ;; ReQ type checking infrastructure
 
-(defn boolean? [item] (or (false? item) (true? item)))
+
+(defn req-boolean?
+  "is the item _specifically_ the value `true` or the value `false`?"
+  [item] (or (false? item) (true? item)))
+
+
+
+;; ReQ type system
 
 (def req-matchers
   {
-    :int integer?
+    :int integer? ;; most specific
     :num number?
-    :bool boolean?
+    :bool req-boolean?
     :vec vector?
-    :any some?})
+    :any some?})  ;; least specific
 
 
+(defn req-type
+  "determines the basic req-type of an item, first asking what it thinks"
+  [item]
+  (cond
+    (immortal? item) (req-type (:value item))
+    (integer? item) :int
+    (float? item) :float
+    (number? item) :num
+    (req-boolean? item) :bool
+    (vector? item) :vec
+    :else :any
+    ))
+
+(defn req-type?
+  "returns true when the req-type is that if the requested item"
+  [type item]
+  (= (req-type item) type))
 
 ;; Qlosure objects
 
@@ -136,6 +174,7 @@
   Object
   (toString [_] 
     (str "«" token "»")))
+
 
 (defn make-qlosure
   "convenience function to create a Qlosure record with keyword labeled arguments"
@@ -275,6 +314,8 @@
 
 ;; specialized constructors
 
+; TODO make this work with req-type?
+
 (defn make-binary-one-type-qlosure
   "produces a Qlosure with two arguments of the same specified type"
   [token type-kw operator]
@@ -291,6 +332,7 @@
        }
   )))
 
+;; TODO make this work with req-type?
 
 (defn make-unary-qlosure
   "produces a Qlosure with one argument of the specified type"

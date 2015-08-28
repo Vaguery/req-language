@@ -125,7 +125,7 @@
 (fact "make-qlosure is a convenience function with keywords and defaults"
   (class (make-qlosure "foo")) => req.core.Qlosure
   (:wants (make-qlosure "foo")) => {} ;; not nil
-  (:wants (make-qlosure "foo" :wants {:int integer?})) => {:int integer?}
+  (:wants (make-qlosure "foo" :wants {:int 88})) => {:int 88}
   (:transitions (make-qlosure "foo" :wants {:int integer?})) => {} ;; not nil
   )
 
@@ -148,7 +148,10 @@
   (req-wants 3 false) => false
   (req-wants [1 2] [false :g]) => false
 
-  (let [q (make-qlosure :foo :wants {:int integer?, :float float?, :vec vector?})]
+  (let [q (make-qlosure :foo :wants {
+      :int #(req-type? :int %), 
+      :float #(req-type? :float %),
+      :vec #(req-type? :vec %)})]
     (req-wants q 4) => truthy       ;; :int
     (req-wants q 4) => :int
 
@@ -314,6 +317,8 @@
 
 ;; a simplifying constructor:
 
+;; TODO make this work with req-type?
+
 (defn make-arithmetic-qlosure
   [token operator]
   (make-qlosure
@@ -357,31 +362,32 @@
   ))
 
 
-;; the `boolean?` helper
+;; the `req-boolean?` helper
 
-(fact "the ReQ `boolean` function checks _specifically_ for 'true and 'false only"
-  (boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
-  (boolean? 19) => false
-  (boolean? []) => false
-  (boolean? nil) => false
-  (boolean? (= 7 7)) => true
+(fact "the ReQ `req-boolean` function checks _specifically_ for 'true and 'false only"
+  (req-boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
+  (req-boolean? 19) => false
+  (req-boolean? []) => false
+  (req-boolean? nil) => false
+  (req-boolean? (= 7 7)) => true
   )
 
 ;; using the make-binary-logical-qlosure helper to create the boolean equivalent of arithmetic
 
+;; TODO make this work with req-type?
 
 (defn make-binary-logical-qlosure
   [token operator]
   (make-qlosure
     token   
     :wants 
-      {:bool boolean?}
+      {:bool req-boolean?}
     :transitions
       {:bool 
         (fn [item]
           (make-qlosure
               (str item token "⦿")
-              :wants {:bool boolean?}
+              :wants {:bool req-boolean?}
               :transitions {:bool (partial operator item)}))
          }
   ))
@@ -469,6 +475,8 @@
   ))
 
 ;; more Qlosure-making helper functions: `make-unary-qlosure`
+
+;; TODO fix these to use (req-type?)
 
 (def «neg»
   "defines a Qlosure that negates a single :num argument"
@@ -623,3 +631,37 @@
     (readable-queue (nth-step her-number 1202 )) =>
       ["8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "false" "«[8 9 0 3 5 7 6]»" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9"]
 ))
+
+;; EXPLORATORY
+
+;; Immortal items
+
+(fact "req-type? returns true or false if the item has the given req-type keyword"
+  (req-type? :int 88) => true
+  (req-type? :bool 88) => false
+  (req-type? :bool false) => true
+  (req-type? :vec [88]) => true
+  )
+
+(fact "an Immortal item has the req-type of its :value"
+  (req-type (->Immortal 99)) => :int
+  (req-type (->Immortal false)) => :bool
+  (req-type (->Immortal 9/2)) => :num
+  )
+
+(fact "an Immortal item prints with the ⥀ character appended"
+  (str (->Immortal 99)) => "99⥀"
+  (str (->Immortal false)) => "false⥀"
+  (str (->Immortal [1 [2]])) => "[1 [2]]⥀"
+  )
+
+(def «stringer»
+  "a 1-ary Qlosure which wants an :int and applies `#(str %)`"
+  (make-unary-qlosure "stringer" :int (partial #(str %))))
+
+
+; (fact "a Qlosure that wants a req-type also will want an Immortal of that req-type"
+;   (let [stringy (req-with [«stringer» false (->Immortal 88)])]
+;   (readable-queue (nth-step stringy 0)) => ["«stringer»" "false" "88⥀"]
+;   (readable-queue (nth-step stringy 1)) => ["false" "\"88\"" "88⥀"]
+;   ))
