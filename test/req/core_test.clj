@@ -319,7 +319,12 @@
 
 ;; TODO make this work with req-type?
 
-(defn make-arithmetic-qlosure
+(fact "testing"
+  (req-type? :int 88) => true
+  (req-type? :bool false) => true
+  )
+
+(defn make-binary-arithmetic-qlosure
   [token operator]
   (make-qlosure
     token
@@ -337,7 +342,7 @@
 
 (def «-»
   "2-ary Qlosure implementing (Clojure safe) :num subtraction"
-  (make-arithmetic-qlosure "-" -')) 
+  (make-binary-arithmetic-qlosure "-" -')) 
 
 (fact "an arithmetic Qlosure permits quick definition of 2-number ReQ math functions"
   (let [two-ps (req-with [«-» 1 «-» false 4 8])]
@@ -350,7 +355,7 @@
 
 (def «*»
   "2-ary Qlosure implementing (Clojure safe) :num multiplication"
-  (make-arithmetic-qlosure "*" *')) 
+  (make-binary-arithmetic-qlosure "*" *')) 
 
 (fact "each _instance_ of a 2-number ReQ math function acquires arguments independently as the interpreter steps forward"
   (let [two-ps (req-with [«-» 1 «*» false 4 8])]
@@ -362,14 +367,14 @@
   ))
 
 
-;; the `req-boolean?` helper
+;; the `boolean?` helper
 
-(fact "the ReQ `req-boolean` function checks _specifically_ for 'true and 'false only"
-  (req-boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
-  (req-boolean? 19) => false
-  (req-boolean? []) => false
-  (req-boolean? nil) => false
-  (req-boolean? (= 7 7)) => true
+(fact "the ReQ `boolean` function checks _specifically_ for 'true and 'false only"
+  (boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
+  (boolean? 19) => false
+  (boolean? []) => false
+  (boolean? nil) => false
+  (boolean? (= 7 7)) => true
   )
 
 ;; using the make-binary-logical-qlosure helper to create the boolean equivalent of arithmetic
@@ -381,13 +386,13 @@
   (make-qlosure
     token   
     :wants 
-      {:bool req-boolean?}
+      {:bool boolean?}
     :transitions
       {:bool 
         (fn [item]
           (make-qlosure
               (str item token "⦿")
-              :wants {:bool req-boolean?}
+              :wants {:bool boolean?}
               :transitions {:bool (partial operator item)}))
          }
   ))

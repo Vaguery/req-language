@@ -128,11 +128,10 @@
   [item]
   (= (class item) req.core.Immortal))
 
-
 ;; ReQ type checking infrastructure
 
 
-(defn req-boolean?
+(defn boolean?
   "is the item _specifically_ the value `true` or the value `false`?"
   [item] (or (false? item) (true? item)))
 
@@ -144,7 +143,7 @@
   {
     :int integer? ;; most specific
     :num number?
-    :bool req-boolean?
+    :bool boolean?
     :vec vector?
     :any some?})  ;; least specific
 
@@ -157,7 +156,7 @@
     (integer? item) :int
     (float? item) :float
     (number? item) :num
-    (req-boolean? item) :bool
+    (boolean? item) :bool
     (vector? item) :vec
     :else :any
     ))
@@ -166,6 +165,7 @@
   "returns true when the req-type is that if the requested item"
   [type item]
   (= (req-type item) type))
+
 
 ;; Qlosure objects
 
@@ -315,6 +315,7 @@
 ;; specialized constructors
 
 ; TODO make this work with req-type?
+; make work with isa?
 
 (defn make-binary-one-type-qlosure
   "produces a Qlosure with two arguments of the same specified type"
