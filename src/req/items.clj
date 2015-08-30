@@ -21,6 +21,9 @@
   (new-queue (reduce append-this-to-queue base more-items)))
 
 
+;; Interpreter items
+
+
 (defrecord Interpreter [queue])
 
 
@@ -64,6 +67,14 @@
   (if (immortal? item)
     item
     (->Immortal item)))
+
+
+;; Channels
+
+(defrecord Channel [id value type]
+  Object
+  (toString [_] 
+    (str "≋:" id "|" (or value "?") "|" type ":≋")))
 
 
 ;; Nullary items ("Qlosures with no arguments")
@@ -182,7 +193,10 @@
     (req-consume item2 item1)))
 
 
+;;
 ;; the entire ReQ type system
+;;
+;;
 
 (def req (->  (make-hierarchy)
               (derive ::int ::num)
@@ -200,8 +214,6 @@
               (derive clojure.lang.BigInt ::int)
               (derive clojure.lang.PersistentVector ::vec)
               ))
-
-
 
 
 (defn req-int?
@@ -272,6 +284,8 @@
     ::bool #(isa? req (req-type %) ::bool)
     ::vec #(isa? req (req-type %) ::vec)
     ::thing some?})  ;; least specific
+
+
 
 
 ;; specialized ReQ item constructors

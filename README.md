@@ -25,21 +25,19 @@ Not working yet. Close, but the design is still emerging.
 - working sketch of partial application (using "Qlosure" records) for unary and some binary instructions
 - some imperative instructions (need to be reworked so they use `:self|` channel)
 - Added a simple framework for creating "Nullary" items, which run an arity-0 function whenever they're in the hot seat. These will be useful in creating persistent values consumed as arguments by other functions
+- Immortal items
 
 ### Active development
 
-- immortal items
-- return type for Qlosures
-- nested Qlosures (consuming Qlosures as arguments, and capturing arguments)
+- Channels
 - mixed binary Qlosures
 - "gatherers": recursive Qlosures for collections
-- Channels
+- `:self|` channel for imperative instructions
 
 ### To Do
 
 - channel list in interpreter record
 - instruction definitions stored in interpreter record
-- `:self|` channel for imperative instructions
 - `«fork»` and other instructions for concurrency
 - search:
     - random code generation
@@ -50,6 +48,12 @@ Not working yet. Close, but the design is still emerging.
     - lexicase selection
 - minimum viable release:
     - working interpreter with: Channels; convenient ways to define new instructions and types; works for arbitrary instruction Qlosures (any number or type of arguments and return types); problem definition; training and test data; 
+
+### Some day
+
+- return type for Qlosures
+- nested Qlosures (consuming Qlosures as arguments, and capturing arguments)
+
 
 ## Qlosures and how they interact
 
