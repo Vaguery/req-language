@@ -36,7 +36,9 @@
   [req]
   (map str (:queue req))) 
 
+
 ;; some instructions
+
 
 (defn req-archive
   "puts a copy of the entire queue at its tail"
@@ -137,7 +139,7 @@
 
 
 
-;; ReQ type system
+;; the entire ReQ type system
 
 (def req (->  (make-hierarchy)
               (derive ::int ::num)
@@ -150,6 +152,7 @@
               (derive java.lang.Boolean ::bool)
               (derive java.math.BigDecimal ::float)
               (derive clojure.lang.BigInt ::int)
+              (derive clojure.lang.PersistentVector ::vec)
               ))
 
 
@@ -162,16 +165,43 @@
     ::thing some?})  ;; least specific
 
 
+(defn req-int?
+  "returns true if the item is a req-int or a subtype of that type"
+  [item]
+  (isa? req (class item) :req.core/int))
+
+(defn req-float?
+  "returns true if the item is a req-float or a subtype of that type"
+  [item]
+  (isa? req (class item) :req.core/float))
+
+(defn req-num?
+  "returns true if the item is a req-num or a subtype of that type"
+  [item]
+  (isa? req (class item) :req.core/num))
+
+(defn req-bool?
+  "returns true if the item is a req-bool or a subtype of that type"
+  [item]
+  (isa? req (class item) :req.core/bool))
+
+(defn req-vec?
+  "returns true if the item is a req-vec or a subtype of that type"
+  [item]
+  (isa? req (class item) :req.core/vec))
+
+
 (defn req-type
   "determines the basic req-type of an item, first asking what it thinks"
   [item]
   (cond
     (immortal? item) (req-type (:value item))
-    (isa? req (class item) ::int) ::int
-    (isa? req (class item) ::float) ::float
-    (isa? req (class item) ::num) ::num
-    (isa? req (class item) ::bool) ::bool
-    (vector? item) ::vec
+    (qlosure? item) (:type item)
+    (req-int? item) ::int
+    (req-float? item) ::float
+    (req-num? item) ::num
+    (req-bool? item) ::bool
+    (req-vec? item) ::vec
     :else ::thing
     ))
 
@@ -184,7 +214,7 @@
 ;; Qlosure objects
 
 
-(defrecord Qlosure [token wants transitions]
+(defrecord Qlosure [token wants transitions type]
   Object
   (toString [_] 
     (str "«" token "»")))
@@ -192,9 +222,16 @@
 
 (defn make-qlosure
   "convenience function to create a Qlosure record with keyword labeled arguments"
-  [token & {:keys [wants transitions] :or {wants {} transitions {}}}]
-  (->Qlosure token wants transitions)
+  [token & {:keys [wants transitions type]
+    :or {wants {} transitions {} type :req.core/thing}}]
+  (->Qlosure token wants transitions type)
   )
+
+
+(defn qlosure?
+  "returns true if the argument is a Qlosure record"
+  [item]
+  (= (class item) req.core.Qlosure))
 
 
 (defn get-wants

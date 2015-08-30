@@ -3,98 +3,24 @@
   (:use [req.core])
   )
 
-;; queues
-
-(fact "new-queue will populate the queue with the seq it's handed"
-  (count (new-queue [1 2 3 4])) => 4
-  (peek (new-queue '(1 2 3 4))) => 1
-  (new-queue [:a :b :a :b]) => [:a :b :a :b]
-  )
-
-(fact "new-queue works with no argument"
-  (count (new-queue)) => 0)
-
-(fact "conjing to a queue adds at the right"
-  (rest (conj (new-queue [1 2 3 4]) 99)) => [2 3 4 99]
-  )
-
-(fact "popping from a queue removes from the left"
-  (pop (new-queue [1 2 3 4])) => [2 3 4]
-  )
-
-(fact "peeking into a queue reads the item at the left"
-  (peek (new-queue [1 2 3 4])) => 1
-  )
-
-;; helpers for managing items being pushed by the interpreter
-
-(fact "append-this-to-queue appends an item or concats a seq to a seq"
-  (let [my-q (new-queue [1 2 3])
-        nested-q (new-queue [1 [2 3]])]
-    (append-this-to-queue my-q 4) => [1 2 3 4]
-    (append-this-to-queue my-q '(4 5)) => [1 2 3 4 5]
-    (append-this-to-queue my-q false) => [1 2 3 false]
-    (append-this-to-queue (new-queue) false) => [false]
-    (append-this-to-queue nested-q [false [true]]) => [1 [2 3] false [true]]
-    (append-this-to-queue nested-q {:a 8}) => [1 [2 3] {:a 8}]
-    (append-this-to-queue nested-q #{1 2 3}) => [1 [2 3] #{1 2 3}]
-  ))
-
-(fact "append-this-to-queue works on a queue as expected"
-  (peek (append-this-to-queue (new-queue [1 2 3]) 9)) => 1
-  (peek (append-this-to-queue (new-queue [1 2 3]) [4 5 6])) => 1
-  )
-
-(fact "queue-from-items uses append-this to pile stuff onto a new queue"
-  (queue-from-items [1 2] 3 [4 5]) => [1 2 3 4 5]
-  (peek (queue-from-items [1 2] 3 [4 5])) => 1
-  (queue-from-items [1 2] 3 [4 [5]]) => [1 2 3 4 [5]]
-  (queue-from-items [1 2] '(3 4 5) false {:a 9} #{99 999}) =>
-    [1 2 3 4 5 false {:a 9} #{99 999}]
-  )
-
-;; interpreter
-
-(fact "calling req-with with a vector of items puts those onto the queue"
-  (:queue (req-with [2 5 8])) => (just [2 5 8])
-  (:queue (req-with [2 [3] false])) => (just [2 [3] false])
-  )
-
-;; types
-
-(fact "the type hierarchy works"
-  (isa? req :req.core/int :req.core/num) => true
-  (isa? req (type 8812) :req.core/int) => true
-  (isa? req (type false) :req.core/bool) => true
-  (isa? req (type 812N) :req.core/int) => true
-  (isa? req (type 812M) :req.core/float) => true
-  )
-
-
-;; step: literals
-
-(fact "calling step on an interpreter containing only literals will cycle them"
-  (:queue (step (req-with [false 1.2 3]))) => [1.2 3 false]
-  )
-
-(fact "the req-steps function produces a sequence of future steps"
-  (let [literal (req-with [false 1.2 3])]
-    (:queue (nth-step literal 1)) => [1.2 3 false]
-    (:queue (nth-step literal 2)) => [3 false 1.2]
-  ))
-
-
 ;; Qlosures
 
-(fact "make-qlosure is a convenience function with keywords and defaults"
+
+(fact "make-qlosure is a convenience function which uses explicit keywords"
   (class (make-qlosure "foo")) => req.core.Qlosure
   (:wants (make-qlosure "foo")) => {} ;; not nil
   (:wants (make-qlosure "foo" :wants {:arg1 88})) => {:arg1 88}
   (:transitions (make-qlosure "foo" :wants {:int integer?})) => {} ;; not nil
   )
 
-(fact "a Qlosure is created with a token,
-    which appears in guillemets when it's printed with (str …)"
+
+(fact "there is an optional :type argument to make-qlosure with default :unknown"
+  (:type (make-qlosure "foo" :wants {} :transitions {} :type :req.core/int)) =>
+    :req.core/int
+  )
+
+
+(fact "a Qlosure is created with a token, which appears in guillemets when it's printed with (str …)"
   (str (make-qlosure "+")) => "«+»"
   (str (make-qlosure "skeleton")) => "«skeleton»"
   (str (make-qlosure "9+_")) => "«9+_»"
@@ -106,16 +32,63 @@
   (get-wants (make-qlosure "+" :wants {:arg1 9})) => {:arg1 9}
   )
 
+(def p
+  "polymorphic 2-ary Qlosure implementing both :req.core/num addition and :vec concatenation"
+  (make-qlosure
+    "+"                             
+    :wants
+       {:num1 number?, :vec1 vector?}     
+    :transitions
+      {:num1                              
+        (fn [item]
+          (make-qlosure
+            (str item "+⦿")
+            :wants {:num2 number?}
+            :transitions {:num2 (partial + item)}))
+       :vec1
+        (fn [item]
+          (make-qlosure
+            (str item "+⦿")
+            :wants {:vec2 vector?}
+            :transitions {:vec2 (partial into item)}))}))
+
+
+(fact "we can determine whether it's a qlosure using `qlosure?`"
+  (qlosure? p) => true
+  (qlosure? 88) => false)
+
+
+(fact "because it has :wants, it can be checked for interactions as intended with req-wants"
+  (req-wants p 11) => :num1
+  (req-wants p [1 2 3]) => :vec1
+  )
+
+
+(fact "we can use get-transition to... well, you know"
+  (get-transition p 11) => (:num1 (:transitions p))
+  (get-transition p [11]) => (:vec1 (:transitions p))
+  )
+
+(fact "we can use req-type to get the type of the Qlosure (like any other ReQ item)"
+  (req-type p) => :req.core/thing
+  (req-type (make-qlosure "x" :wants {} :transitions {} :type (req-type 9.2))) =>
+    :req.core/float
+  )
+
+
+;; wants
 
 (fact "We can tell when (and how) an item `req-wants` another (indicating it can act as an arg)"
   (req-wants 3 4) => false
   (req-wants 3 false) => false
   (req-wants [1 2] [false :g]) => false
 
-  (let [q (make-qlosure :foo :wants {
-      :int #(req-type? :req.core/int %), 
-      :float #(req-type? :req.core/float %),
-      :vec #(req-type? :req.core/vec %)})]
+  (let [q (make-qlosure
+          :foo
+          :wants {
+            :int #(req-type? :req.core/int %), 
+            :float #(req-type? :req.core/float %),
+            :vec #(req-type? :req.core/vec %)})]
     (req-wants q 4) => truthy       ;; :int
     (req-wants q 4) => :int
 
@@ -182,38 +155,6 @@
     ))
 
 
-;; Qlosure records
-
-(def p
-  "polymorphic 2-ary Qlosure implementing both :req.core/num addition and :vec concatenation"
-  (make-qlosure
-    "+"                             
-    :wants
-       {:num1 number?, :vec1 vector?}     
-    :transitions
-      {:num1                              
-        (fn [item]
-          (make-qlosure
-            (str item "+⦿")
-            :wants {:num2 number?}
-            :transitions {:num2 (partial + item)}))
-       :vec1
-        (fn [item]
-          (make-qlosure
-            (str item "+⦿")
-            :wants {:vec2 vector?}
-            :transitions {:vec2 (partial into item)}))}))
-
-
-(fact "because it has :wants, it can be checked for interactions as intended with req-wants"
-  (req-wants p 11) => :num1
-  (req-wants p [1 2 3]) => :vec1
-  )
-
-(fact "we can use get-transition to... well, you know"
-  (get-transition p 11) => (:num1 (:transitions p))
-  (get-transition p [11]) => (:vec1 (:transitions p))
-  )
 
 (fact "req-consume applies the transformation from a Qlosure to an appropriate item"
   (str (req-consume p 11)) => "«11+⦿»"
@@ -604,19 +545,6 @@
 ;; EXPLORATORY
 
 ;; Immortal items
-
-(fact "req-type? returns true or false if the item has the given req-type keyword"
-  (req-type? :req.core/int 88) => true
-  (req-type? :req.core/bool 88) => false
-  (req-type? :req.core/bool false) => true
-  (req-type? :req.core/vec [88]) => true
-  )
-
-(fact "an Immortal item has the req-type of its :value"
-  (req-type (->Immortal 99)) => :req.core/int
-  (req-type (->Immortal false)) => :req.core/bool
-  (req-type (->Immortal 9/2)) => :req.core/num
-  )
 
 (fact "an Immortal item prints with the ⥀ character appended"
   (str (->Immortal 99)) => "99⥀"
