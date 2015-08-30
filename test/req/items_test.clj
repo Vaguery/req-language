@@ -3,10 +3,11 @@
         [req.core]
         [req.interpreter]
         [req.items]
-        [req.instructions.bool])
-  )
+        [req.instructions.bool]))
+
 
 ;; basic ReQ types
+
 
 (fact "the ReQ `boolean` function checks _specifically_ for 'true and 'false only"
   (boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
@@ -26,6 +27,7 @@
 
 ;; individual literal items
 
+
 (fact "req-type checking works for individual things"
   (req-int? 88) => true
   (req-num? 88) => true
@@ -37,8 +39,8 @@
   (req-num? 88N) => true
   (req-int? 88N) => true
   (req-int? 8/9) => false
-  (req-num? 8/9) => true
-  )
+  (req-num? 8/9) => true)
+
 
 (fact "req-type? returns the type as such"
   (req-type 88) => :req.items/int
@@ -47,8 +49,8 @@
   (req-type 8.2) => :req.items/float
   (req-type 882M) => :req.items/float
   (req-type 88N) => :req.items/int
-  (req-type 8/9) => :req.items/num
-  )
+  (req-type 8/9) => :req.items/num)
+
 
 ;; the req-type of collections
 
@@ -60,8 +62,8 @@
   (req-vec? req-num? [1 2.3 4/5]) => true
   (req-vec? req-num? []) => true
   (req-vec? req-bool? []) => true
-  (req-vec? req-int? [8 [9 10]]) => false
-  )
+  (req-vec? req-int? [8 [9 10]]) => false)
+
 
 ;; req-tree?
 ;; req-list?
@@ -83,44 +85,7 @@
   (req-type (make-nullary "www" #(constantly "w"))) => :req.items/nullary)
 
 
-;; the req-type of an Immortal is its value
-
-(fact "req-type? returns true or false if the item has the given req-type keyword"
-  (req-type? :req.items/int 88) => true
-  (req-type? :req.items/bool 88) => false
-  (req-type? :req.items/bool false) => true
-  (req-type? :req.items/vec [88]) => true
-
-  )
-
-(fact "an Immortal item has the req-type of its :value"
-  (req-type (->Immortal 99)) => :req.items/int
-  (req-type (->Immortal false)) => :req.items/bool
-  (req-type (->Immortal 9/2)) => :req.items/num
-  )
-
-;; Qlosures are the core of ReQ's approach to partial application of functions.
-;; Every instruction, function or partially-applied "closure" is a ReQ item
-;; on the queue. In addition to a "token" which represents it in print, each Qlosure
-;; has a :wants map, which names the several arguments it can accept and
-;; assigns a "checker" for each of those arguments which is used to determine whether
-;; some other ReQ item can act as an argument. Qlosures also have a :transitions
-;; map, which uses the same keys as :wants, and indicates what should be "made"
-;; if the Qlosure item "finds" a specified argument. In the case of a unary function,
-;; this :transition simply indicates the result of applying a function to the argument;
-;; in the case of a binary or more complex function, the transition may specify one or
-;; more Qlosures which are created in turn.
-;;
-;; Functions defined as Qlosure items are expected to be polymorphic. For example, a
-;; "+" function may accent a ::num or a ::vec argument, and the resulting Qlosure this
-;; creates will differ in each case. The ::num version will want another number to add
-;; to the first; the ::vec version will look for another vector to concatenate.
-;;
-;; By design, ReQ Qlosures are where the "user modeling" happens. Against a backdrop of
-;; core functionality one expects from any algorithmic system (arithmetic, logic, string-
-;; handling, collections), the user can define new domain-specific types, and more
-;; importantly a suite of _functions_ which connect these new types to the existing core
-;; through new Qlosure definitions.
+;; Qlosures
 
 
 (fact "a Qlosure is created with a token, which appears in guillemets when it's printed with (str …)"
@@ -411,19 +376,88 @@
 
 ;; Immortal items
 
+
+(fact "the `immortalize` function returns an Immortal with a given value"
+  (type (immortalize 99)) => req.items.Immortal)
+
+
+(fact "Immortality can't be 'stacked'"
+  (str (immortalize (immortalize 123.456))) => "123.456⥀") ;; not "123.456⥀⥀"
+
+
+(fact "req-type? returns true or false if the item has the given req-type keyword"
+  (req-type? :req.items/int 88) => true
+  (req-type? :req.items/bool 88) => false
+  (req-type? :req.items/bool false) => true
+  (req-type? :req.items/vec [88]) => true)
+
+
+(fact "an Immortal item has the req-type of its :value"
+  (req-type (immortalize 99)) => :req.items/int
+  (req-type (immortalize false)) => :req.items/bool
+  (req-type (immortalize 9/2)) => :req.items/num)
+
+
 (fact "an Immortal item prints with the ⥀ character appended"
-  (str (->Immortal 99)) => "99⥀"
-  (str (->Immortal false)) => "false⥀"
-  (str (->Immortal [1 [2]])) => "[1 [2]]⥀"
-  )
-
-(def «stringer»
-  "a 1-ary Qlosure which wants an :req.items/int and applies `#(str %)`"
-  (make-unary-qlosure "stringer" :req.items/int (partial #(str %))))
+  (str (immortalize 99)) => "99⥀"
+  (str (immortalize false)) => "false⥀"
+  (str (immortalize [1 [2]])) => "[1 [2]]⥀")
 
 
-; (fact "a Qlosure that wants a req-type also will want an Immortal of that req-type"
-;   (let [stringy (req-with [«stringer» false (->Immortal 88)])]
-;   (readable-queue (nth-step stringy 0)) => ["«stringer»" "false" "88⥀"]
-;   (readable-queue (nth-step stringy 1)) => ["false" "\"88\"" "88⥀"]
-;   ))
+(def «doubler»
+  "a 1-ary Qlosure which wants an :req.items/int and applies `#(str % %)`"
+  (make-unary-qlosure
+    "doubler"
+    :req.items/int
+    (partial #(str % %))))
+
+
+(fact "the req-type of an Immortal item is its value's req-type"
+  (req-type (immortalize 99)) => (req-type 99)
+  (req-type (immortalize false)) => (req-type false)
+  (req-type (immortalize :a)) => (req-type :a))
+
+
+(fact "a Qlosure that wants a req-type also will want an Immortal of that req-type"
+  (let [big-old-123 (immortalize 123)]
+  (type big-old-123) => req.items.Immortal
+  (req-type big-old-123) => :req.items/int
+  (req-wants «doubler» big-old-123) => :req.items/int
+  ))
+
+(fact "a Qlosure that is Immortal still has the same wants as its value"
+  (let [always-subtract (immortalize «-»)]
+    (req-wants always-subtract 29) => :req.items/num))
+
+
+(fact "an Immortal item is not consumed by a Qlosure that uses it as an argument"
+  (let [big-old-123 (immortalize 123)
+        stringy (req-with [«doubler» false «-» big-old-123])]
+  (readable-queue (nth-step stringy 0)) => ["«doubler»" "false" "«-»" "123⥀"]
+  (readable-queue (nth-step stringy 1)) => ["false" "«-»" "123123" "123⥀"]
+  (readable-queue (nth-step stringy 2)) => ["«-»" "123123" "123⥀" "false"]
+  (readable-queue (nth-step stringy 3)) => ["false" "123123" "«123-⦿»" "123⥀"]
+  (readable-queue (nth-step stringy 4)) => ["123123" "«123-⦿»" "123⥀" "false"]
+  (readable-queue (nth-step stringy 5)) => ["«123-⦿»" "123⥀" "false" "123123"]
+  (readable-queue (nth-step stringy 6)) => ["false" "123123" "0" "123⥀"]))
+
+
+(fact "an Immortal item is not consumed when it consumes another item either"
+  (let [stringy (req-with [(immortalize «doubler») 100 123 456])]
+  (readable-queue (nth-step stringy 0)) => ["«doubler»⥀" "100" "123" "456"]
+  (readable-queue (nth-step stringy 1)) => ["123" "456" "100100" "«doubler»⥀"]
+  (readable-queue (nth-step stringy 2)) => ["456" "100100" "123123" "«doubler»⥀"]
+  (readable-queue (nth-step stringy 3)) => ["100100" "123123" "456456" "«doubler»⥀"]
+  (readable-queue (nth-step stringy 4)) => ["123123" "456456" "«doubler»⥀" "100100"]))
+
+
+(fact "an Immortal item is not consumed when it consumes another item either"
+  (let [big-old-123 (immortalize 123)
+        stringy (req-with [(immortalize «doubler») 100 big-old-123 456])]
+  (readable-queue (nth-step stringy 0)) => ["«doubler»⥀" "100" "123⥀" "456"]
+  (readable-queue (nth-step stringy 1)) => ["123⥀" "456" "100100" "«doubler»⥀"]
+  (readable-queue (nth-step stringy 2)) => ["456" "100100" "123123" "«doubler»⥀" "123⥀"]
+  (readable-queue (nth-step stringy 3)) => ["123⥀" "100100" "123123" "456456" "«doubler»⥀"]
+  (readable-queue (nth-step stringy 4)) =>
+    ["100100" "123123" "456456" "123123" "«doubler»⥀" "123⥀"]))
+

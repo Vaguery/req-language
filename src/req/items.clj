@@ -55,7 +55,15 @@
 (defn immortal?
   "returns true if the argument is an Immortal record"
   [item]
-  (= (class item) req.items.Immortal))
+  (instance? req.items.Immortal item))
+
+
+(defn immortalize
+  "returns an Immortal record with the specified item as its :value; if the item is already an Immortal, it returns that"
+  [item]
+  (if (immortal? item)
+    item
+    (->Immortal item)))
 
 
 ;; Nullary items ("Qlosures with no arguments")
@@ -94,9 +102,11 @@
 
 
 (defn get-wants
-  "returns the :wants table from a Qlosure item"
-  [qlosure]
-  (:wants qlosure))
+  "returns the :wants table from any ReQ item"
+  [item]
+  (cond
+    (immortal? item) (get-wants (:value item))
+    :else (:wants item)))
 
 
 (defn req-wants
@@ -152,8 +162,15 @@
   "applies an (unchecked) transition from the actor onto the item arg; if the actor doesn't want the item, it returns a list of the two unchanged"
   [actor item]
   (if (req-wants actor item)
-    ((get-transition actor item) item)
-    (list actor item)))
+    (cond
+      (and (immortal? actor) (immortal? item))
+        (list ((get-transition (:value actor) (:value item)) (:value item)) actor item)
+      (immortal? actor)
+        (list ((get-transition (:value actor) item) item) actor)
+      (immortal? item)
+        (list ((get-transition actor (:value item)) (:value item)) item)
+      :else ((get-transition actor item) item))
+  (list actor item)))
 
 
 (defn ordered-consume
@@ -174,6 +191,7 @@
               (derive ::num ::thing)
               (derive ::nullary ::thing)
               (derive req.items.Nullary ::nullary)
+              (derive req.items.Qlosure ::qlosure)
               (derive java.lang.Number ::num)
               (derive java.lang.Long ::int)
               (derive java.lang.Double ::float)
@@ -189,25 +207,25 @@
 (defn req-int?
   "returns true if the item is a req-int or a subtype of that type"
   [item]
-  (isa? req (class item) ::int))
+  (isa? req (type item) ::int))
 
 
 (defn req-float?
   "returns true if the item is a req-float or a subtype of that type"
   [item]
-  (isa? req (class item) ::float))
+  (isa? req (type item) ::float))
 
 
 (defn req-num?
   "returns true if the item is a req-num or a subtype of that type"
   [item]
-  (isa? req (class item) ::num))
+  (isa? req (type item) ::num))
 
 
 (defn req-bool?
   "returns true if the item is a req-bool or a subtype of that type"
   [item]
-  (isa? req (class item) ::bool))
+  (isa? req (type item) ::bool))
 
 
 (defn nullary?
@@ -249,10 +267,10 @@
 
 (def req-matchers
   {
-    ::int integer? ;; most specific
-    ::num number?
-    ::bool boolean?
-    ::vec vector?
+    ::int #(isa? req (req-type %) ::int) ;; most specific
+    ::num #(isa? req (req-type %) ::num)
+    ::bool #(isa? req (req-type %) ::bool)
+    ::vec #(isa? req (req-type %) ::vec)
     ::thing some?})  ;; least specific
 
 
