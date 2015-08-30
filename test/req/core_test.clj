@@ -55,7 +55,8 @@
 
 (fact "we can determine whether it's a qlosure using `qlosure?`"
   (qlosure? p) => true
-  (qlosure? 88) => false)
+  (qlosure? 88) => false
+  )
 
 
 (fact "because it has :wants, it can be checked for interactions as intended with req-wants"
@@ -78,17 +79,19 @@
 
 ;; wants
 
-(fact "We can tell when (and how) an item `req-wants` another (indicating it can act as an arg)"
+(fact "literals don't really have 'wants'"
   (req-wants 3 4) => false
   (req-wants 3 false) => false
   (req-wants [1 2] [false :g]) => false
+)
 
+(fact "Qlosure items with wants use those to check potential arguments"
   (let [q (make-qlosure
           :foo
           :wants {
-            :int #(req-type? :req.core/int %), 
-            :float #(req-type? :req.core/float %),
-            :vec #(req-type? :req.core/vec %)})]
+            :int req-int?, 
+            :float req-float?,
+            :vec req-vec?})]
     (req-wants q 4) => truthy       ;; :int
     (req-wants q 4) => :int
 

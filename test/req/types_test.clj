@@ -39,6 +39,19 @@
   (req-type 8/9) => :req.core/num
   )
 
+;; the req-type of collections
+
+(fact "req-vec? can also check the subtype of the contents given an optional arg"
+  (req-vec? [1 2 3]) => true
+  (req-vec? req-int? [1 2 3]) => true
+  (req-vec? req-bool? [1 2 3]) => false
+  (req-vec? req-bool? [false true false]) => true
+  (req-vec? req-num? [1 2.3 4/5]) => true
+  (req-vec? req-num? []) => true
+  (req-vec? req-bool? []) => true
+  )
+
+
 ;; the req-type of a Qlosure is its return type
 
 ;; the req-type of a Nullary is its return type (if any)

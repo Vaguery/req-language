@@ -170,25 +170,33 @@
   [item]
   (isa? req (class item) :req.core/int))
 
+
 (defn req-float?
   "returns true if the item is a req-float or a subtype of that type"
   [item]
   (isa? req (class item) :req.core/float))
+
 
 (defn req-num?
   "returns true if the item is a req-num or a subtype of that type"
   [item]
   (isa? req (class item) :req.core/num))
 
+
 (defn req-bool?
   "returns true if the item is a req-bool or a subtype of that type"
   [item]
   (isa? req (class item) :req.core/bool))
 
+
 (defn req-vec?
-  "returns true if the item is a req-vec or a subtype of that type"
-  [item]
-  (isa? req (class item) :req.core/vec))
+  "returns true if the item is a req-vec or a subtype of that type; with an optional function as the second argument, checks whether the vector only contains which return `true` when checked"
+  ([item]
+    (isa? req (class item) :req.core/vec))
+  ([checker item]
+    (and
+      (req-vec? item)
+      (every? checker item))))
 
 
 (defn req-type
