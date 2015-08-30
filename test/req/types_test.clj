@@ -6,13 +6,22 @@
 
 ;; basic ReQ types
 
+
+(fact "the ReQ `boolean` function checks _specifically_ for 'true and 'false only"
+  (boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
+  (boolean? 19) => false
+  (boolean? []) => false
+  (boolean? nil) => false
+  (boolean? (= 7 7)) => true)
+
+
 (fact "the req-type hierarchy works"
   (isa? req :req.types/int :req.types/num) => true
   (isa? req (type 8812) :req.types/int) => true
   (isa? req (type false) :req.types/bool) => true
   (isa? req (type 812N) :req.types/int) => true
-  (isa? req (type 812M) :req.types/float) => true
-  )
+  (isa? req (type 812M) :req.types/float) => true)
+
 
 ;; individual literal items
 
@@ -61,7 +70,17 @@
 
 ;; the req-type of a Qlosure is its return type
 
-;; the req-type of a Nullary is its return type (if any)
+;; the req-type of a Nullary is ::nullary
+
+(fact "the `nullary?` helper detects Nullary objects"
+  (nullary? (make-nullary "www" #(constantly "w"))) => true
+  (nullary? 88) => false)
+
+
+(fact "Nullary ReQ items have req-type ::nullary"
+  (type (make-nullary "www" #(constantly "w"))) => req.types.Nullary
+  (req-type (make-nullary "www" #(constantly "w"))) => :req.types/nullary)
+
 
 ;; the req-type of an Immortal is its value
 

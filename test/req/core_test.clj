@@ -4,37 +4,162 @@
         [req.types :as types])
   )
 
-;; Qlosures
 
-
-(fact "make-qlosure is a convenience function which uses explicit keywords"
-  (class (make-qlosure "foo")) => req.types.Qlosure
-  (:wants (make-qlosure "foo")) => {} ;; not nil
-  (:wants (make-qlosure "foo" :wants {:arg1 88})) => {:arg1 88}
-  (:transitions (make-qlosure "foo" :wants {:int integer?})) => {} ;; not nil
-  )
-
-
-(fact "there is an optional :type argument to make-qlosure with default :unknown"
-  (:type (make-qlosure "foo" :wants {} :transitions {} :type :req.types/int)) =>
-    :req.types/int
-  )
+;; Qlosures are the core of ReQ's approach to partial application of functions.
+;; Every instruction, function or partially-applied "closure" is a ReQ item
+;; on the queue. In addition to a "token" which represents it in print, each Qlosure
+;; has a :wants map, which names the several arguments it can accept and
+;; assigns a "checker" for each of those arguments which is used to determine whether
+;; some other ReQ item can act as an argument. Qlosures also have a :transitions
+;; map, which uses the same keys as :wants, and indicates what should be "made"
+;; if the Qlosure item "finds" a specified argument. In the case of a unary function,
+;; this :transition simply indicates the result of applying a function to the argument;
+;; in the case of a binary or more complex function, the transition may specify one or
+;; more Qlosures which are created in turn.
+;;
+;; Functions defined as Qlosure items are expected to be polymorphic. For example, a
+;; "+" function may accent a ::num or a ::vec argument, and the resulting Qlosure this
+;; creates will differ in each case. The ::num version will want another number to add
+;; to the first; the ::vec version will look for another vector to concatenate.
+;;
+;; By design, ReQ Qlosures are where the "user modeling" happens. Against a backdrop of
+;; core functionality one expects from any algorithmic system (arithmetic, logic, string-
+;; handling, collections), the user can define new domain-specific types, and more
+;; importantly a suite of _functions_ which connect these new types to the existing core
+;; through new Qlosure definitions.
 
 
 (fact "a Qlosure is created with a token, which appears in guillemets when it's printed with (str …)"
   (str (make-qlosure "+")) => "«+»"
   (str (make-qlosure "skeleton")) => "«skeleton»"
-  (str (make-qlosure "9+_")) => "«9+_»"
-  )
+  (str (make-qlosure "9+_")) => "«9+_»")
+
+
+(fact "make-qlosure is a convenience function that makes a Qlosure with the specified token"
+  (class (make-qlosure "foo")) => req.types.Qlosure
+  (str (make-qlosure "foo")) => "«foo»")
+
+
+(fact "make-qlosure takes an explicit :wants keyword to set that value"
+  (:wants (make-qlosure "foo")) => {} ;; not nil!
+  (:wants (make-qlosure "foo" :wants {:arg1 88})) => {:arg1 88})
+
+
+(fact "make-qlosure takes an explicit :transitions keyword to set that value"
+  (:transitions (make-qlosure "foo")) => {} ;; not nil
+  (:transitions (make-qlosure "foo" :transitions {:a :b})) => {:a :b})
+
+
+(fact "make-qlosure takes an explicit :type keyword to set that value"
+  (:type (make-qlosure "foo")) => :req.types/thing ;; not ::qlosure!
+  (:type (make-qlosure "foo" :type :req.types/int)) => :req.types/int)
+
+
+;; how ReQ items interact with :wants
+
+
+(fact "literals don't really have 'wants'"
+  (req-wants 3 4) => false
+  (req-wants 3 false) => false
+  (req-wants [1 2] [false :g]) => false)
 
 
 (fact "get-wants produces the :wants component of a Qlosure's :transitions table"
   (get-wants (make-qlosure "+")) => {}
-  (get-wants (make-qlosure "+" :wants {:arg1 9})) => {:arg1 9}
-  )
+  (get-wants (make-qlosure "+" :wants {:arg1 9})) => {:arg1 9})
+
+
+(fact "Qlosure items with wants use those to check potential arguments"
+  (let [q (make-qlosure
+          :foo
+          :wants {
+            :int req-int?, 
+            :float req-float?,
+            :vec req-vec?})]
+    (req-wants q 4) => truthy       ;; :int
+    (req-wants q false) => falsey   ;; false
+    (req-wants q [1 2 3]) => truthy ;; :vec
+    (req-wants q "nope") => falsey  ;; false
+    (req-wants q 4.3) => truthy))
+
+
+(fact "the value returned by req-wants is actually the key of the triggered :want item"
+  (let [q (make-qlosure
+          :foo
+          :wants {
+            :int req-int?, 
+            :float req-float?,
+            :vec req-vec?})]
+    (req-wants q 4) => :int
+    (req-wants q false) => falsey   ;; false
+    (req-wants q [1 2 3]) => :vec
+    (req-wants q "nope") => falsey  ;; false
+    (req-wants q 4.3) => :float))
+
+
+(fact "`req-wants` returns the _first_ key in an item's :wants which matches the item"
+  (let [q (make-qlosure
+          :foo
+          :wants {
+            :int req-int?, 
+            :num req-num?})]
+    (req-wants q 4) => :int
+    (req-wants q 4.3) => :num))
+
+
+(fact "can-interact? determines whether _either_ ReQ item wants the other"
+  (can-interact? 3 4) => false
+  (can-interact? 3 false) => false
+  (can-interact? [1 2] [false :g]) => false
+  (let [q (make-qlosure
+            "foo"
+            :wants {:int #(isa? req (class %) :req.types/int), :float float?, :vec vector?})]
+    (can-interact? q 4) => true
+    (can-interact? 4 q) => true
+    (can-interact? q q) => false))
+
+
+(fact "do-not-interact? determines whether either item wants the other"
+  (do-not-interact? 3 4) => true
+  (do-not-interact? 3 false) => true
+  (do-not-interact? [1 2] [false :g]) => true
+  (let [q (make-qlosure "s"
+            :wants {:int integer?, :float float?, :vec vector?})]
+    (do-not-interact? q 4) => false
+    (do-not-interact? 4 q) => false
+    (do-not-interact? q q) => true))
+
+
+(fact "all-interacting-items returns everything in a collection that can interact with the (first arg) ReQ item"
+  (let [q (make-qlosure :foo
+            :wants {:int integer?, :float float?, :vec vector?})]
+    (all-interacting-items 3 [1 2 3 4 5 6]) => []
+    (all-interacting-items q [1 nil -11 3.2 '(4)]) => [1 -11 3.2]
+    (all-interacting-items q []) => []
+    (all-interacting-items q [1 1 [1 1] 1]) => [1 1 [1 1] 1]))
+
+
+(fact "split-with-interaction takes a sequential collection and splits it at the first item that interacts with the actor (arg 1)"
+  ;; we will use this to manage ReQ queues
+  (fact "if there is no interaction, the first list contains everything"
+    (split-with-interaction 3 [1 2 3 4 5 6]) => ['(1 2 3 4 5 6) '()])
+    (let [q (make-qlosure :foo
+              :wants {:int integer?, :vec vector?})]
+      (split-with-interaction q [1.2 3.4 5 67]) => ['(1.2 3.4) '(5 67)]
+      (split-with-interaction q [1.2 3.4 false 67]) => ['(1.2 3.4 false) '(67)]
+      (split-with-interaction q [1 2 3]) => ['() '(1 2 3)]
+      (split-with-interaction q [1.2 3.4 5/6]) => ['(1.2 3.4 5/6) '()]
+
+      (split-with-interaction 1.2 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67 ~q) '()]
+      (split-with-interaction 11 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67) `(~q)]
+      (split-with-interaction 11 [q q]) =>  [`() `(~q ~q)]))
+
+
+;; Qlosure as such
+
 
 (def p
-  "polymorphic 2-ary Qlosure implementing both :req.types/num addition and :vec concatenation"
+  "polymorphic 2-ary Qlosure implementing both ::num addition and ::vec concatenation"
   (make-qlosure
     "+"                             
     :wants
@@ -54,123 +179,35 @@
             :transitions {:vec2 (partial into item)}))}))
 
 
-(fact "we can determine whether it's a qlosure using `qlosure?`"
+(fact "we can determine whether a ReQ item is a qlosure using `qlosure?`"
   (qlosure? p) => true
-  (qlosure? 88) => false
-  )
-
-
-(fact "because it has :wants, it can be checked for interactions as intended with req-wants"
-  (req-wants p 11) => :num1
-  (req-wants p [1 2 3]) => :vec1
-  )
+  (qlosure? 88) => false)
 
 
 (fact "we can use get-transition to... well, you know"
   (get-transition p 11) => (:num1 (:transitions p))
-  (get-transition p [11]) => (:vec1 (:transitions p))
-  )
+  (get-transition p [11]) => (:vec1 (:transitions p)))
+
 
 (fact "we can use req-type to get the type of the Qlosure (like any other ReQ item)"
   (req-type p) => :req.types/thing
-  (req-type (make-qlosure "x" :wants {} :transitions {} :type (req-type 9.2))) =>
-    :req.types/float
-  )
-
-
-;; wants
-
-(fact "literals don't really have 'wants'"
-  (req-wants 3 4) => false
-  (req-wants 3 false) => false
-  (req-wants [1 2] [false :g]) => false
-)
-
-(fact "Qlosure items with wants use those to check potential arguments"
-  (let [q (make-qlosure
-          :foo
-          :wants {
-            :int req-int?, 
-            :float req-float?,
-            :vec req-vec?})]
-    (req-wants q 4) => truthy       ;; :int
-    (req-wants q 4) => :int
-
-    (req-wants q false) => falsey   ;; false
-    (req-wants q [1 2 3]) => truthy ;; :vec
-    (req-wants q [1 2 3]) => :vec
-
-    (req-wants q "nope") => falsey  ;; false
-    (req-wants q 4.3) => truthy     ;; :float
-    (req-wants q 4.3) => :float
-    )
-  )
-
-
-(fact "can-interact? determines whether either item wants the other"
-  (can-interact? 3 4) => false
-  (can-interact? 3 false) => false
-  (can-interact? [1 2] [false :g]) => false
-  (let [q (make-qlosure
-            "foo"
-            :wants {:int #(isa? req (class %) :req.types/int), :float float?, :vec vector?})]
-    (can-interact? q 4) => true
-    (can-interact? 4 q) => true
-    (can-interact? q q) => false
-  ))
-
-
-(fact "do-not-interact? determines whether either item wants the other"
-  (do-not-interact? 3 4) => true
-  (do-not-interact? 3 false) => true
-  (do-not-interact? [1 2] [false :g]) => true
-  (let [q (make-qlosure "s"
-            :wants {:int integer?, :float float?, :vec vector?})]
-    (do-not-interact? q 4) => false
-    (do-not-interact? 4 q) => false
-    (do-not-interact? q q) => true
-  ))
-
-
-(fact "all-interacting-items returns everything in a collection that can interact with the (first arg) ReQ item"
-  (let [q (make-qlosure :foo
-            :wants {:int integer?, :float float?, :vec vector?})]
-    (all-interacting-items 3 [1 2 3 4 5 6]) => []
-    (all-interacting-items q [1 nil -11 3.2 '(4)]) => [1 -11 3.2]
-    (all-interacting-items q []) => []
-    (all-interacting-items q [1 1 [1 1] 1]) => [1 1 [1 1] 1]
-  ))
-
-
-(fact "split-with-interaction takes a sequential collection and splits it at the first item that interacts with the actor (arg 1)"
-  ;; we will use this to manage ReQ queues
-  (fact "if there is no interaction, the first list contains everything"
-    (split-with-interaction 3 [1 2 3 4 5 6]) => ['(1 2 3 4 5 6) '()])
-    (let [q (make-qlosure :foo
-              :wants {:int integer?, :vec vector?})]
-      (split-with-interaction q [1.2 3.4 5 67]) => ['(1.2 3.4) '(5 67)]
-      (split-with-interaction q [1.2 3.4 false 67]) => ['(1.2 3.4 false) '(67)]
-      (split-with-interaction q [1 2 3]) => ['() '(1 2 3)]
-      (split-with-interaction q [1.2 3.4 5/6]) => ['(1.2 3.4 5/6) '()]
-
-      (split-with-interaction 1.2 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67 ~q) '()]
-      (split-with-interaction 11 [1.2 3.4 5 67 q]) =>  [`(1.2 3.4 5 67) `(~q)]
-      (split-with-interaction 11 [q q]) =>  [`() `(~q ~q)]
-    ))
-
+  (req-type (make-qlosure "x" :type (req-type 9.2))) => :req.types/float)
 
 
 (fact "req-consume applies the transformation from a Qlosure to an appropriate item"
   (str (req-consume p 11)) => "«11+⦿»"
-  (str (req-consume p [1 2 3])) => "«[1 2 3]+⦿»"
-  )
+  (str (req-consume p [1 2 3])) => "«[1 2 3]+⦿»")
+
 
 (fact "the result of req-consume can itself be applied to an appropriate item"
   (req-consume (req-consume p 11) 19) => 30
-  (req-consume (req-consume p [1 2]) [3]) => [1 2 3]
-  )
+  (req-consume (req-consume p [1 2]) [3]) => [1 2 3])
 
-;; 
+
+(fact "applying req-consume to an unwanted item produces a list containing the args"
+  (req-consume p false) => (just [p false]))
+
+
 ;; The interpreter cycle:
 ;;   pop an item
 ;;   if it's an interpreter instruction, do it
@@ -182,18 +219,20 @@
 ;;     - push any immortal arguments to the tail of the queue
 ;;   if it doesn't interact, push it to the tail of the queue
 
+
 ;; Qlosures on the queue
+
 
 (fact "a ReQ interpreter with a Qlosure with no targets just keeps it"
   (readable-queue (step (req-with [p false]))) => ["false", "«+»"]
-  (readable-queue (step (req-with [p]))) => ["«+»"]
-)
+  (readable-queue (step (req-with [p]))) => ["«+»"])
+
 
 (fact "a Qlosure will consume the nearest argument and produce an intermediate"
   (readable-queue (step (req-with [p 1 2 4 8]))) => ["2" "4" "8" "«1+⦿»"]
   (:queue (step (step (req-with [p 1 2 4 8])))) => [4 8 3]
-  (:queue (step (step (step (req-with [p 1 2 4 8]))))) => [8 3 4]
-  )
+  (:queue (step (step (step (req-with [p 1 2 4 8]))))) => [8 3 4])
+
 
 (fact "two Qlosure items will consume arguments according to the queue dynamics"
   (let [two-ps (req-with [p 1 p 2 4 8])]
@@ -201,8 +240,8 @@
     (readable-queue (nth-step two-ps 1)) =>  ["«+»" "2" "4" "8" "«1+⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1+⦿»" "«2+⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["«2+⦿»" "8" "5"]
-    (readable-queue (nth-step two-ps 4)) =>  ["5" "10"]
-  ))
+    (readable-queue (nth-step two-ps 4)) =>  ["5" "10"]))
+
 
 (fact "Qlosure items will still skip (and requeue) unwanted items as needed"
   (let [two-ps (req-with [p 1 p false 4 8])]
@@ -214,44 +253,21 @@
   ))
 
 
-;; the following is NOT correct for the final ReQ language spec: Qlosures should act as viable arguments for other Qlosures, if compatible
-; (fact "stepping through with two Qlosures on the interpreter"
-;   (let [two-ps (req-with [p p 1 2 4 8])]
-;     (readable-queue (step two-ps)) => ["2" "4" "8" "«+»" "«1+⦿»"]
-;     (readable-queue (step (step two-ps))) => ["«1+⦿»" "4" "8" "«2+⦿»"]
-;     (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
-;     (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]
-;   ))
+;; the following is CURRENTLY correct for the final ReQ language spec...
+;; but in the long term, Qlosures should be able to act as viable arguments
+;; for other Qlosures, if their :type matches
+(fact "stepping through with two Qlosures which might interact (some day) on the interpreter"
+  (let [two-ps (req-with [p p 1 2 4 8])]
+    (readable-queue (step two-ps)) => ["2" "4" "8" "«+»" "«1+⦿»"]
+    (readable-queue (step (step two-ps))) => ["«1+⦿»" "4" "8" "«2+⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
+    (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]))
 
-
-;; a simplifying constructor:
-
-;; TODO make this work with req-type?
-
-(fact "testing"
-  (req-type? :req.types/int 88) => true
-  (req-type? :req.types/bool false) => true
-  )
-
-(defn make-binary-arithmetic-qlosure
-  [token operator]
-  (make-qlosure
-    token
-    :wants
-      {:num number?}
-    :transitions
-      {:num 
-        (fn [item]
-          (make-qlosure
-            (str item token "⦿")
-            :wants {:num number?}
-            :transitions {:num (partial operator item)}))
-         }
-  ))
 
 (def «-»
   "2-ary Qlosure implementing (Clojure safe) :num subtraction"
-  (make-binary-arithmetic-qlosure "-" -')) 
+  (make-binary-one-type-qlosure "-" :req.types/num -')) 
+
 
 (fact "an arithmetic Qlosure permits quick definition of 2-number ReQ math functions"
   (let [two-ps (req-with [«-» 1 «-» false 4 8])]
@@ -259,12 +275,13 @@
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4-⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["false" "«4-⦿»" "-7"]
     (readable-queue (nth-step two-ps 4)) =>  ["«4-⦿»" "-7" "false"]
-    (readable-queue (nth-step two-ps 5)) =>  ["false" "11"]
-  ))
+    (readable-queue (nth-step two-ps 5)) =>  ["false" "11"]))
+
 
 (def «*»
   "2-ary Qlosure implementing (Clojure safe) :num multiplication"
-  (make-binary-arithmetic-qlosure "*" *')) 
+  (make-binary-one-type-qlosure  "*" :req.types/num *')) 
+
 
 (fact "each _instance_ of a 2-number ReQ math function acquires arguments independently as the interpreter steps forward"
   (let [two-ps (req-with [«-» 1 «*» false 4 8])]
@@ -272,70 +289,14 @@
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4*⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["false" "«4*⦿»" "-7"]
     (readable-queue (nth-step two-ps 4)) =>  ["«4*⦿»" "-7" "false"]
-    (readable-queue (nth-step two-ps 5)) =>  ["false" "-28"]
-  ))
-
-
-;; the `boolean?` helper
-
-(fact "the ReQ `boolean` function checks _specifically_ for 'true and 'false only"
-  (boolean? true) => true  ;; note these aren't the VALUE, just saying if arg is TYPE :bool
-  (boolean? 19) => false
-  (boolean? []) => false
-  (boolean? nil) => false
-  (boolean? (= 7 7)) => true
-  )
-
-;; using the make-binary-logical-qlosure helper to create the boolean equivalent of arithmetic
-
-;; TODO make this work with req-type?
-
-(defn make-binary-logical-qlosure
-  [token operator]
-  (make-qlosure
-    token   
-    :wants 
-      {:bool boolean?}
-    :transitions
-      {:bool 
-        (fn [item]
-          (make-qlosure
-              (str item token "⦿")
-              :wants {:bool boolean?}
-              :transitions {:bool (partial operator item)}))
-         }
-  ))
-
-(def «∧»
-  "2-ary Qlosure implementing :bool AND"
-  (make-binary-logical-qlosure "∧" ∧))
-
-(def «∨»
-  "2-ary Qlosure implementing :bool OR"
-  (make-binary-logical-qlosure "∨" ∨)) 
-
-(fact "these «∧» and «∨» Qlosures implement binary boolean AND and OR respectively"
-  (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
-    (readable-queue (nth-step two-ps 1)) => 
-      ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
-    (readable-queue (nth-step two-ps 2)) => 
-      ["false" "«∨»" "true" "false" "true" "«true∧⦿»" "«true∨⦿»"]
-    (readable-queue (nth-step two-ps 3)) => 
-      ["true" "false" "true" "«true∧⦿»" "«true∨⦿»" "«false∨⦿»"]
-    (readable-queue (nth-step two-ps 4)) => 
-      ["«true∨⦿»" "«false∨⦿»" "false" "true" "true"]
-    (readable-queue (nth-step two-ps 5)) => 
-      ["true" "true" "«false∨⦿»" "true"]
-  ))
-
-
-;; using the arithmetic and boolean examples, the core `make-binary-one-type-qlosure`
-;; function will build any Qlosure with same-typed arguments quickly
+    (readable-queue (nth-step two-ps 5)) =>  ["false" "-28"]))
 
 
 (def «∧»
   "2-ary Qlosure implementing :bool AND"
-  (make-binary-one-type-qlosure "∧" :req.types/bool ∧)) 
+  (make-binary-one-type-qlosure "∧" :req.types/bool ∧))
+
+
 (def «∨»
   "2-ary Qlosure implementing :bool OR"
   (make-binary-one-type-qlosure "∨" :req.types/bool ∨)) 
@@ -352,17 +313,7 @@
     (readable-queue (nth-step two-ps 4)) => 
       ["«true∨⦿»" "«false∨⦿»" "false" "true" "true"]
     (readable-queue (nth-step two-ps 5)) => 
-      ["true" "true" "«false∨⦿»" "true"]
-  ))
-
-
-(def «*»
-  "binary Qlosure implementing (Clojure safe) multiplication"
-  (make-binary-one-type-qlosure "*" :req.types/num *'))
-
-(def «-»
-  "binary Qlosure implementing (Clojure safe) subtraction"
-  (make-binary-one-type-qlosure "-" :req.types/num -')) 
+      ["true" "true" "«false∨⦿»" "true"]))
 
 
 (fact "the `make-binary-one-type-qlosure` function works for arithmetic too"
@@ -371,8 +322,7 @@
     (readable-queue (nth-step two-ps 2)) => ["8" "«1-⦿»" "false" "«4*⦿»"]
     (readable-queue (nth-step two-ps 3)) => ["false" "«4*⦿»" "-7"]
     (readable-queue (nth-step two-ps 4)) => ["«4*⦿»" "-7" "false"]
-    (readable-queue (nth-step two-ps 5)) => ["false" "-28"]
-  ))
+    (readable-queue (nth-step two-ps 5)) => ["false" "-28"]))
 
 
 (def «≤»
@@ -385,22 +335,24 @@
     (readable-queue (nth-step two-ps 1)) =>  ["«∨»" "false" "4" "8" "«1≤⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1≤⦿»" "«false∨⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["«false∨⦿»" "8" "true"]
-    (readable-queue (nth-step two-ps 4)) =>  ["8" "true"]
-  ))
+    (readable-queue (nth-step two-ps 4)) =>  ["8" "true"]))
+
 
 ;; more Qlosure-making helper functions: `make-unary-qlosure`
 
-;; TODO fix these to use (req-type?)
 
 (def «neg»
   "defines a Qlosure that negates a single :req.types/num argument"
-  (make-unary-qlosure "neg" :req.types/num -)) 
+  (make-unary-qlosure "neg" :req.types/num -))
+
 
 (fact "a unary Qlosure can be built wit `make-unary-qlosure"
   (let [negger (req-with [«neg» 1 «neg» false 4 8])]
     (readable-queue (nth-step negger 1)) =>  ["«neg»" "false" "4" "8" "-1"]
-    (readable-queue (nth-step negger 2)) =>  ["8" "-1" "false" "-4"]
-  ))
+    (readable-queue (nth-step negger 2)) =>  ["8" "-1" "false" "-4"]))
+
+
+;; showing off how to make an ad hoc Qlosure item with an unusual function
 
 
 (def «neg-even?»
@@ -416,13 +368,14 @@
     (readable-queue (nth-step negger 2)) =>  
       ["8" "false" "«neg-even?»" "false" "true"]
     (readable-queue (nth-step negger 3)) =>  
-      ["false" "true" "false" "false"]
-  ))
+      ["false" "true" "false" "false"]))
 
-;; multiple result values
+
+;; multiple result values can be returned from interactions
+
 
 (def «3x»
-  "a 1-ary Qlosure which produces three copies of its :thing argument"
+  "a 1-ary Qlosure which produces three copies of its (any-type) argument"
   (make-unary-qlosure "3x" :req.types/thing
   (partial #(list % % %))))
 
@@ -441,8 +394,10 @@
       ["«3x»" "«3x»" "8" "-1" "-1" "-1" "false" "false" "false" "-4" "-4" "-4"]
       ;; and so on...
     (readable-queue (nth-step tripler 32)) =>
-      ["-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "false" "false" "false" "false" "false" "false" "false" "false" "false" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "8" "8" "8" "8" "8" "8" "8" "8" "8" "«3x»" "«3x»" "«3x»"]
-  ))
+      ["-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "false" "false" "false" "false" "false" "false" "false" "false" "false" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "8" "8" "8" "8" "8" "8" "8" "8" "8" "«3x»" "«3x»" "«3x»"]))
+
+
+;; collections can be returned from interactions
 
 
 (def «3xVec»
@@ -464,6 +419,9 @@
 
 
 ;; Nullary items
+
+;; A Nullary is like a Qlosure, except that it has no arguments and thus no :wants. 
+;; Whenever a Nullary is executed, it produces its result
 
 (fact "a Nullary has a token it shows when printed, like a Qlosure"
   (str (make-nullary "beep" nil)) => "«beep»"

@@ -23,6 +23,18 @@
   (= (class item) req.types.Immortal))
 
 
+;; Nullary items ("Qlosures with no arguments")
+
+
+(defrecord Nullary [token function]
+  Object
+    (toString [_] (str "«" token "»")))
+
+
+(defn make-nullary [token function]
+  (->Nullary token function))
+
+
 ;; Qlosure objects
 
 
@@ -60,6 +72,8 @@
               (derive ::float ::num)
               (derive ::bool ::thing)
               (derive ::num ::thing)
+              (derive ::nullary ::thing)
+              (derive req.types.Nullary ::nullary)
               (derive java.lang.Number ::num)
               (derive java.lang.Long ::int)
               (derive java.lang.Double ::float)
@@ -103,6 +117,12 @@
   (isa? req (class item) ::bool))
 
 
+(defn nullary?
+  "returns true if the item is a Nullary or a subtype of that type"
+  [item]
+  (isa? req (type item) ::nullary))
+
+
 (defn req-vec?
   "returns true if the item is a req-vec or a subtype of that type; with an optional function as the second argument, checks whether the vector only contains which return `true` when checked"
   ([item]
@@ -119,6 +139,7 @@
   (cond
     (immortal? item) (req-type (:value item))
     (qlosure? item) (:type item)
+    (nullary? item) ::nullary
     (req-int? item) ::int
     (req-float? item) ::float
     (req-num? item) ::num

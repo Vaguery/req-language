@@ -174,10 +174,11 @@
 
 
 (defn req-consume
-  "applies an (unchecked) transition from the actor onto the item arg"
+  "applies an (unchecked) transition from the actor onto the item arg; if the actor doesn't want the item, it returns a list of the two unchanged"
   [actor item]
-  ((get-transition actor item) item)
-  )
+  (if (req-wants actor item)
+    ((get-transition actor item) item)
+    (list actor item)))
 
 
 (defn ordered-consume
@@ -188,14 +189,6 @@
     (req-consume item1 item2)
     (req-consume item2 item1)))
 
-;; Nullary items ("Qlosures with no arguments")
-
-(defrecord Nullary [token function]
-  Object
-    (toString [_] (str "«" token "»")))
-
-(defn make-nullary [token function]
-  (->Nullary token function))
 
 ;; interpreter stepping
 
@@ -216,33 +209,34 @@
 (defn step
   "pops the top item from a ReQinterpreter and updates the interpreter state"
   [req]
-  (let [hot (peek (:queue req))
+  (let [hot-seat (peek (:queue req))
         tail (pop (:queue req))
         popped-state (req-with tail)]
     (cond
-      (= (type hot) Nullary)
-        (req-with (queue-from-items tail ((:function hot))))
-      (contains? req-imperatives hot)
-        ((hot req-imperatives) popped-state)
-      (seq (all-interacting-items hot tail))
-        (let [parts (split-with-interaction hot tail)
+      (t/nullary? hot-seat)
+        (req-with (queue-from-items tail ((:function hot-seat))))
+      (contains? req-imperatives hot-seat)
+        ((hot-seat req-imperatives) popped-state)
+      (seq (all-interacting-items hot-seat tail))
+        (let [parts (split-with-interaction hot-seat tail)
               filler (first parts)
               target (first (second parts))
-              result (ordered-consume hot target)
+              result (ordered-consume hot-seat target)
               remainder (into [] (drop 1 (second parts)))]
               (req-with 
                 (queue-from-items remainder filler result)))
       :else
-        (assoc req :queue (conj tail hot)))
-  ))
+        (assoc req :queue (conj tail hot-seat)))))
+
 
 (defn req-steps
   "steps a ReQinterpreter into its future (producing a lazy sequence)"
   [req]
-  (cons req (lazy-seq (req-steps (step req))))
-  )
+  (cons req (lazy-seq (req-steps (step req)))))
+
 
 (defn nth-step
+  "produces the specified step (0-based count) of the specified ReQ interpreter, using a lazy sequence to build it forward"
   [req n]
   (nth (req-steps req) n))
 
@@ -283,7 +277,7 @@
 (defn make-seed
   "creates a Nullary which emits its contents and persists"
   [token contents]
-  (make-nullary
+  (t/make-nullary
     token
     (fn [] (list (make-seed token contents) contents))))
 
@@ -291,14 +285,14 @@
 (defn make-timer
   "creates a Nullary which counts from the first integer to the end; if there is a payload, it emits that every step"
   ([state end]
-    (make-nullary
+    (t/make-nullary
       (str "timer:" state "-" end)
       (fn [] 
         (if (>= (inc state) end)
           end
           (make-timer (inc state) end)))))
   ([state end contents]
-    (make-nullary
+    (t/make-nullary
       (str "timer:" state "-" end)
       (fn [] 
         (if (>= (inc state) end)
@@ -309,7 +303,7 @@
 (defn make-looper
   "creates a Nullary looper from a collection; cycles the collection and emits the top item each step"
   [collection]
-    (make-nullary
+    (t/make-nullary
       (str collection)
       (fn [] 
         (list 
