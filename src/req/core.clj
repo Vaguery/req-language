@@ -2,6 +2,8 @@
 
 (require '[req.types :as t])
 
+(use  '[req.instructions.bool :as bool]
+      '[req.instructions.imperative :as imperative])
 
 (defn new-queue 
   "creates a new PersistentQueue populated with the specified collection"
@@ -36,92 +38,7 @@
 (defn readable-queue
   "takes a ReQ interpreter and applies `map str` to its `:queue`"
   [req]
-  (map str (:queue req))) 
-
-
-;; some instructions
-
-
-(defn req-archive
-  "puts a copy of the entire queue at its tail"
-  [req]
-  (let [q (:queue req)]
-    (assoc req :queue (concat q q)))
-  )
-
-
-(defn req-dup
-  "puts a copy of the top item on the queue at the tail of the queue"
-  [req]
-  (let [q (:queue req)
-        top (peek q)]
-  (if (nil? top)
-    req
-    (assoc req :queue (conj q top)))
-  ))
-
-
-(defn req-flush
-  "empties the queue"
-  [req]
-  (req-with [])
-  )
-
-
-(defn req-next
-  "sends the top item to the tail of the queue"
-  [req]
-  (let [q (:queue req)
-        top (peek q)]
-  (if (nil? top)
-    req
-    (assoc req :queue (conj (pop q) top)))
-  ))
-
-
-(defn req-pop
-  "throws away the top item on the queue"
-  [req]
-  (let [q (:queue req)
-        top (peek q)]
-  (if (nil? top)
-    req
-    (assoc req :queue (pop q)))
-  ))
-
-
-(defn req-prev
-  "sends the tail item to the head of the queue"
-  [req]
-  (let [q (:queue req)
-        top (peek q)]
-  (if (nil? top)
-    req
-    (req-with (cons (last q) (drop-last q))))
-  ))
-
-
-(defn req-reverse
-  "reverses the queue order"
-  [req]
-  (let [q (:queue req)]
-    (assoc req :queue (reverse q)))
-  )
-
-
-(defn req-swap
-  "pop the top two items and requeue them in swapped order"
-  [req]
-  (let [q (:queue req)]
-    (if (< (count q) 2)
-    req 
-    (let [item-1 (peek q) item-2 (second q)]
-      (assoc req :queue (conj (pop (pop q)) item-2 item-1))))
-    ))
-
-
-
-
+  (map str (:queue req)))
 
 
 (defn req-wants
@@ -188,6 +105,30 @@
   (if (req-wants item1 item2)
     (req-consume item1 item2)
     (req-consume item2 item1)))
+
+;;
+
+(defn req-flush
+  "empties the queue"
+  [req]
+  (req-with [])
+  )
+
+
+
+(defn req-prev
+  "sends the tail item to the head of the queue"
+  [req]
+  (let [q (:queue req)
+        top (peek q)]
+  (if (nil? top)
+    req
+    (req-with (cons (last q) (drop-last q))))
+  ))
+
+
+
+
 
 
 ;; interpreter stepping
@@ -312,17 +253,4 @@
   )))
 
 ;; boolean functions (to be moved to a new file eventually)
-
-(defn ∧
-  "badly-conceived pure 'boolean' binary logical AND function"
-  [arg1 arg2]
-  (and arg1 arg2)
-  )
-
-(defn ∨
-  "badly-conceived pure 'boolean' binary logical OR function"
-  [arg1 arg2]
-  (or arg1 arg2)
-  )
-
 

@@ -1,7 +1,9 @@
 (ns req.core-test
   (:use midje.sweet
         [req.core :as core]
-        [req.types :as types])
+        [req.types :as types]
+        [req.instructions.bool :as bool]
+        [req.instructions.imperative :as imperative])
   )
 
 
@@ -294,12 +296,12 @@
 
 (def «∧»
   "2-ary Qlosure implementing :bool AND"
-  (make-binary-one-type-qlosure "∧" :req.types/bool ∧))
+  (make-binary-one-type-qlosure "∧" :req.types/bool bool/∧))
 
 
 (def «∨»
   "2-ary Qlosure implementing :bool OR"
-  (make-binary-one-type-qlosure "∨" :req.types/bool ∨)) 
+  (make-binary-one-type-qlosure "∨" :req.types/bool bool/∨)) 
 
 
 (fact "these new definitions still implement boolean AND and OR, respectively"
