@@ -1,16 +1,17 @@
 (ns req.types-test
-  (:use midje.sweet)
-  (:use [req.core])
+  (:use midje.sweet
+        [req.core :as core]
+        [req.types :as types])
   )
 
 ;; basic ReQ types
 
 (fact "the req-type hierarchy works"
-  (isa? req :req.core/int :req.core/num) => true
-  (isa? req (type 8812) :req.core/int) => true
-  (isa? req (type false) :req.core/bool) => true
-  (isa? req (type 812N) :req.core/int) => true
-  (isa? req (type 812M) :req.core/float) => true
+  (isa? req :req.types/int :req.types/num) => true
+  (isa? req (type 8812) :req.types/int) => true
+  (isa? req (type false) :req.types/bool) => true
+  (isa? req (type 812N) :req.types/int) => true
+  (isa? req (type 812M) :req.types/float) => true
   )
 
 ;; individual literal items
@@ -30,13 +31,13 @@
   )
 
 (fact "req-type? returns the type as such"
-  (req-type 88) => :req.core/int
-  (req-type false) => :req.core/bool
-  (req-type (= 7 7)) => :req.core/bool
-  (req-type 8.2) => :req.core/float
-  (req-type 882M) => :req.core/float
-  (req-type 88N) => :req.core/int
-  (req-type 8/9) => :req.core/num
+  (req-type 88) => :req.types/int
+  (req-type false) => :req.types/bool
+  (req-type (= 7 7)) => :req.types/bool
+  (req-type 8.2) => :req.types/float
+  (req-type 882M) => :req.types/float
+  (req-type 88N) => :req.types/int
+  (req-type 8/9) => :req.types/num
   )
 
 ;; the req-type of collections
@@ -49,8 +50,14 @@
   (req-vec? req-num? [1 2.3 4/5]) => true
   (req-vec? req-num? []) => true
   (req-vec? req-bool? []) => true
+  (req-vec? req-int? [8 [9 10]]) => false
   )
 
+;; req-tree?
+;; req-list?
+;; req-set?
+;; req-queue?
+;; req-interpreter?
 
 ;; the req-type of a Qlosure is its return type
 
@@ -59,14 +66,15 @@
 ;; the req-type of an Immortal is its value
 
 (fact "req-type? returns true or false if the item has the given req-type keyword"
-  (req-type? :req.core/int 88) => true
-  (req-type? :req.core/bool 88) => false
-  (req-type? :req.core/bool false) => true
-  (req-type? :req.core/vec [88]) => true
+  (req-type? :req.types/int 88) => true
+  (req-type? :req.types/bool 88) => false
+  (req-type? :req.types/bool false) => true
+  (req-type? :req.types/vec [88]) => true
+
   )
 
 (fact "an Immortal item has the req-type of its :value"
-  (req-type (->Immortal 99)) => :req.core/int
-  (req-type (->Immortal false)) => :req.core/bool
-  (req-type (->Immortal 9/2)) => :req.core/num
+  (req-type (->Immortal 99)) => :req.types/int
+  (req-type (->Immortal false)) => :req.types/bool
+  (req-type (->Immortal 9/2)) => :req.types/num
   )
