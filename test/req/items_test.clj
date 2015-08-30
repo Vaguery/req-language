@@ -464,6 +464,7 @@
 
 ;; Channels
 
+
 (fact "a Channel has an id and a value, which is shown as '?' if unset"
   (str (->Channel "foo" nil :req.items/int)) => "≋:foo|?|:req.items/int:≋"
   (str (->Channel "foo" 77 :req.items/int)) => "≋:foo|77|:req.items/int:≋"
