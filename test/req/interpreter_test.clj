@@ -1,6 +1,7 @@
 (ns req.interpreter-test
   (:use midje.sweet)
-  (:use [req.core])
+  (:use [req.core]
+        [req.interpreter])
   )
 
 ;; queues
@@ -72,3 +73,5 @@
     (:queue (nth-step literal 1)) => [1.2 3 false]
     (:queue (nth-step literal 2)) => [3 false 1.2]
   ))
+
+

@@ -1,9 +1,10 @@
 (ns req.core-test
   (:use midje.sweet
-        [req.core :as core]
-        [req.types :as types]
-        [req.instructions.bool :as bool]
-        [req.instructions.imperative :as imperative])
+        [req.interpreter]
+        [req.core]
+        [req.items]
+        [req.instructions.bool]
+        [req.instructions.imperative])
   )
 
 
@@ -38,7 +39,7 @@
 
 
 (fact "make-qlosure is a convenience function that makes a Qlosure with the specified token"
-  (class (make-qlosure "foo")) => req.types.Qlosure
+  (class (make-qlosure "foo")) => req.items.Qlosure
   (str (make-qlosure "foo")) => "«foo»")
 
 
@@ -53,8 +54,8 @@
 
 
 (fact "make-qlosure takes an explicit :type keyword to set that value"
-  (:type (make-qlosure "foo")) => :req.types/thing ;; not ::qlosure!
-  (:type (make-qlosure "foo" :type :req.types/int)) => :req.types/int)
+  (:type (make-qlosure "foo")) => :req.items/thing ;; not ::qlosure!
+  (:type (make-qlosure "foo" :type :req.items/int)) => :req.items/int)
 
 
 ;; how ReQ items interact with :wants
@@ -115,7 +116,7 @@
   (can-interact? [1 2] [false :g]) => false
   (let [q (make-qlosure
             "foo"
-            :wants {:int #(isa? req (class %) :req.types/int), :float float?, :vec vector?})]
+            :wants {:int #(isa? req (class %) :req.items/int), :float float?, :vec vector?})]
     (can-interact? q 4) => true
     (can-interact? 4 q) => true
     (can-interact? q q) => false))
@@ -192,8 +193,8 @@
 
 
 (fact "we can use req-type to get the type of the Qlosure (like any other ReQ item)"
-  (req-type p) => :req.types/thing
-  (req-type (make-qlosure "x" :type (req-type 9.2))) => :req.types/float)
+  (req-type p) => :req.items/thing
+  (req-type (make-qlosure "x" :type (req-type 9.2))) => :req.items/float)
 
 
 (fact "req-consume applies the transformation from a Qlosure to an appropriate item"
@@ -268,7 +269,7 @@
 
 (def «-»
   "2-ary Qlosure implementing (Clojure safe) :num subtraction"
-  (make-binary-one-type-qlosure "-" :req.types/num -')) 
+  (make-binary-one-type-qlosure "-" :req.items/num -')) 
 
 
 (fact "an arithmetic Qlosure permits quick definition of 2-number ReQ math functions"
@@ -282,7 +283,7 @@
 
 (def «*»
   "2-ary Qlosure implementing (Clojure safe) :num multiplication"
-  (make-binary-one-type-qlosure  "*" :req.types/num *')) 
+  (make-binary-one-type-qlosure  "*" :req.items/num *')) 
 
 
 (fact "each _instance_ of a 2-number ReQ math function acquires arguments independently as the interpreter steps forward"
@@ -296,12 +297,12 @@
 
 (def «∧»
   "2-ary Qlosure implementing :bool AND"
-  (make-binary-one-type-qlosure "∧" :req.types/bool bool/∧))
+  (make-binary-one-type-qlosure "∧" :req.items/bool ∧))
 
 
 (def «∨»
   "2-ary Qlosure implementing :bool OR"
-  (make-binary-one-type-qlosure "∨" :req.types/bool bool/∨)) 
+  (make-binary-one-type-qlosure "∨" :req.items/bool ∨)) 
 
 
 (fact "these new definitions still implement boolean AND and OR, respectively"
@@ -329,7 +330,7 @@
 
 (def «≤»
   "binary Qlosure returns :bool based on whether its 2 :num arguments satisfy (arg1 ≤ arg2)"
-  (make-binary-one-type-qlosure "≤" :req.types/num <=)) 
+  (make-binary-one-type-qlosure "≤" :req.items/num <=)) 
 
 
 (fact "`make-binary-one-type-qlosure` works for ad hoc definitions, too"
@@ -344,8 +345,8 @@
 
 
 (def «neg»
-  "defines a Qlosure that negates a single :req.types/num argument"
-  (make-unary-qlosure "neg" :req.types/num -))
+  "defines a Qlosure that negates a single :req.items/num argument"
+  (make-unary-qlosure "neg" :req.items/num -))
 
 
 (fact "a unary Qlosure can be built wit `make-unary-qlosure"
@@ -359,7 +360,7 @@
 
 (def «neg-even?»
   "creates a Qlosure that answers `true` if its :int argument is negative AND even"
-  (make-unary-qlosure "neg-even?" :req.types/int
+  (make-unary-qlosure "neg-even?" :req.items/int
   (partial #(and (neg? %) (even? %)))))
 
 
@@ -378,7 +379,7 @@
 
 (def «3x»
   "a 1-ary Qlosure which produces three copies of its (any-type) argument"
-  (make-unary-qlosure "3x" :req.types/thing
+  (make-unary-qlosure "3x" :req.items/thing
   (partial #(list % % %))))
 
 
@@ -404,7 +405,7 @@
 
 (def «3xVec»
   "1-ary Qlosure which produces a Clojure vector containing 3x copies of its :thing arg"
-  (make-unary-qlosure "3xVec" :req.types/thing
+  (make-unary-qlosure "3xVec" :req.items/thing
   (partial #(list (vector % % %)))))
 
 
@@ -517,8 +518,8 @@
   )
 
 (def «stringer»
-  "a 1-ary Qlosure which wants an :req.types/int and applies `#(str %)`"
-  (make-unary-qlosure "stringer" :req.types/int (partial #(str %))))
+  "a 1-ary Qlosure which wants an :req.items/int and applies `#(str %)`"
+  (make-unary-qlosure "stringer" :req.items/int (partial #(str %))))
 
 
 ; (fact "a Qlosure that wants a req-type also will want an Immortal of that req-type"

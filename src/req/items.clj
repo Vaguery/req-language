@@ -1,4 +1,4 @@
-(ns req.types)
+(ns req.items)
 
 
 ;; ReQ core type definitions and type-checking infrastructure
@@ -20,7 +20,7 @@
 (defn immortal?
   "returns true if the argument is an Immortal record"
   [item]
-  (= (class item) req.types.Immortal))
+  (= (class item) req.items.Immortal))
 
 
 ;; Nullary items ("Qlosures with no arguments")
@@ -55,13 +55,79 @@
 (defn qlosure?
   "returns true if the argument is a Qlosure record"
   [item]
-  (= (class item) req.types.Qlosure))
+  (= (class item) req.items.Qlosure))
 
 
 (defn get-wants
   "returns the :wants table from a Qlosure item"
   [qlosure]
   (:wants qlosure))
+
+
+(defn req-wants
+  "determines whether one ReQ item wants another; that is,
+  whether the first can use the second as an argument to a function"
+  [actor target]
+  (if-let [wants (get-wants actor)]
+    (if-let [want (first (filter #((second %) target) wants))]
+      (first want)
+      false)
+    false))
+
+
+(defn can-interact?
+  "determines whether either ReQ item wants the other; returns a boolean"
+  [item1 item2]
+  (boolean (or (req-wants item1 item2) (req-wants item2 item1))))
+
+
+(defn all-interacting-items
+  "walks through a collection and returns all things that
+  either are wanted by or want the actor"
+  [actor items]
+    (filter #(can-interact? actor %) items)
+    )
+
+
+(defn do-not-interact?
+  "determines whether either of two ReQ items wants the other (a convenience for use with `split-with`)"
+  [a b]
+  (not (can-interact? a b)))
+
+
+(defn split-with-interaction
+  "splits a collection and returns a vector of two parts:
+  the first contains only things that _do not_ interact with the
+  actor; the second begins with the first item that _does_ interact
+  with the actor; if none of them interact with the actor, the first
+  collection will be empty"
+  [actor items]
+  (split-with (partial do-not-interact? actor) items))
+
+
+(defn get-transition
+  "returns the indexed transition from a Qlosure item"
+  [qlosure item]
+  (let [which (req-wants qlosure item)]
+    (which (:transitions qlosure))
+    ))
+
+
+(defn req-consume
+  "applies an (unchecked) transition from the actor onto the item arg; if the actor doesn't want the item, it returns a list of the two unchanged"
+  [actor item]
+  (if (req-wants actor item)
+    ((get-transition actor item) item)
+    (list actor item)))
+
+
+(defn ordered-consume
+  "if the first arg wants the second, it consumes it; otherwise the second
+  consumes the first"
+  [item1 item2]
+  (if (req-wants item1 item2)
+    (req-consume item1 item2)
+    (req-consume item2 item1)))
 
 
 
@@ -73,7 +139,7 @@
               (derive ::bool ::thing)
               (derive ::num ::thing)
               (derive ::nullary ::thing)
-              (derive req.types.Nullary ::nullary)
+              (derive req.items.Nullary ::nullary)
               (derive java.lang.Number ::num)
               (derive java.lang.Long ::int)
               (derive java.lang.Double ::float)
