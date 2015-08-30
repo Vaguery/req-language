@@ -60,6 +60,17 @@
   (:queue (req-with [2 [3] false])) => (just [2 [3] false])
   )
 
+;; types
+
+(fact "the type hierarchy works"
+  (isa? req :req.core/int :req.core/num) => true
+  (isa? req (type 8812) :req.core/int) => true
+  (isa? req (type false) :req.core/bool) => true
+  (isa? req (type 812N) :req.core/int) => true
+  (isa? req (type 812M) :req.core/float) => true
+  )
+
+
 ;; step: literals
 
 (fact "calling step on an interpreter containing only literals will cycle them"
@@ -72,60 +83,13 @@
     (:queue (nth-step literal 2)) => [3 false 1.2]
   ))
 
-;; step: imperatives
-
-(fact "when :dup is executed, the top item on the queue is doubled and sent to the tail"
-  (:queue (step (req-with [:dup 1.2 3]))) => (just [1.2 3 1.2])
-  (count (:queue (step (req-with [:dup])))) => 0
-  )
-
-(fact "when :pop is executed, the top item on the queue is thrown away"
-  (:queue (step (req-with [:pop 1 2 3 4 5]))) => (just [2 3 4 5])
-  (count (:queue (step (req-with [:pop 2])))) => 0
-  (count (:queue (step (req-with [:pop])))) => 0
-  )
-
-(fact "when :swap is executed, the top two items on the queue are switched (and sent to the end)"
-  (:queue (step (req-with [:swap 1 2 3 4 5]))) => (just [3 4 5 2 1])
-  (:queue (step (req-with [:swap 1 2]))) => (just [2 1])
-  (:queue (step (req-with [:swap 1]))) => (just [1])
-  (:queue (step (req-with [:swap]))) => (just [])
-  )
-
-(fact "when :archive is executed, the entire queue is duplicated at its own tail"
-  (:queue (step (req-with [:archive 1 2 3 4 5]))) => (just [1 2 3 4 5 1 2 3 4 5])
-  (:queue (step (req-with [:archive]))) => (just [])
-  )
-
-(fact "when :reverse is executed, the entire queue is flipped head-to-tail"
-  (:queue (step (req-with [:reverse 1 2 3 4 5]))) => (just [5 4 3 2 1])
-  (:queue (step (req-with [:reverse]))) => (just [])
-  )
-
-(fact "when :flush is executed, the entire queue is emptied"
-  (:queue (step (req-with [:flush 1 2 3 4 5]))) => (just [])
-  (:queue (step (req-with [:flush]))) => (just [])
-  )
-
-(fact "when :next is executed, the top item is sent to the tail"
-  (:queue (step (req-with [:next 1 2 3 4 5]))) => (just [2 3 4 5 1])
-  (:queue (step (req-with [:next 1]))) => (just [1])
-  (:queue (step (req-with [:next]))) => (just [])
-  )
-
-(fact "when :prev is executed, the tail item is sent to the head"
-  (:queue (step (req-with [:prev 1 2 3 4 5]))) => (just [5 1 2 3 4])
-  (:queue (step (req-with [:prev 1]))) => (just [1])
-  (:queue (step (req-with [:prev]))) => (just [])
-  )
-
 
 ;; Qlosures
 
 (fact "make-qlosure is a convenience function with keywords and defaults"
   (class (make-qlosure "foo")) => req.core.Qlosure
   (:wants (make-qlosure "foo")) => {} ;; not nil
-  (:wants (make-qlosure "foo" :wants {:int 88})) => {:int 88}
+  (:wants (make-qlosure "foo" :wants {:arg1 88})) => {:arg1 88}
   (:transitions (make-qlosure "foo" :wants {:int integer?})) => {} ;; not nil
   )
 
@@ -149,9 +113,9 @@
   (req-wants [1 2] [false :g]) => false
 
   (let [q (make-qlosure :foo :wants {
-      :int #(req-type? :int %), 
-      :float #(req-type? :float %),
-      :vec #(req-type? :vec %)})]
+      :int #(req-type? :req.core/int %), 
+      :float #(req-type? :req.core/float %),
+      :vec #(req-type? :req.core/vec %)})]
     (req-wants q 4) => truthy       ;; :int
     (req-wants q 4) => :int
 
@@ -172,7 +136,7 @@
   (can-interact? [1 2] [false :g]) => false
   (let [q (make-qlosure
             "foo"
-            :wants {:int integer?, :float float?, :vec vector?})]
+            :wants {:int #(isa? req (class %) :req.core/int), :float float?, :vec vector?})]
     (can-interact? q 4) => true
     (can-interact? 4 q) => true
     (can-interact? q q) => false
@@ -221,7 +185,7 @@
 ;; Qlosure records
 
 (def p
-  "polymorphic 2-ary Qlosure implementing both :num addition and :vec concatenation"
+  "polymorphic 2-ary Qlosure implementing both :req.core/num addition and :vec concatenation"
   (make-qlosure
     "+"                             
     :wants
@@ -320,8 +284,8 @@
 ;; TODO make this work with req-type?
 
 (fact "testing"
-  (req-type? :int 88) => true
-  (req-type? :bool false) => true
+  (req-type? :req.core/int 88) => true
+  (req-type? :req.core/bool false) => true
   )
 
 (defn make-binary-arithmetic-qlosure
@@ -426,10 +390,10 @@
 
 (def «∧»
   "2-ary Qlosure implementing :bool AND"
-  (make-binary-one-type-qlosure "∧" :bool ∧)) 
+  (make-binary-one-type-qlosure "∧" :req.core/bool ∧)) 
 (def «∨»
   "2-ary Qlosure implementing :bool OR"
-  (make-binary-one-type-qlosure "∨" :bool ∨)) 
+  (make-binary-one-type-qlosure "∨" :req.core/bool ∨)) 
 
 
 (fact "these new definitions still implement boolean AND and OR, respectively"
@@ -449,11 +413,11 @@
 
 (def «*»
   "binary Qlosure implementing (Clojure safe) multiplication"
-  (make-binary-one-type-qlosure "*" :num *'))
+  (make-binary-one-type-qlosure "*" :req.core/num *'))
 
 (def «-»
   "binary Qlosure implementing (Clojure safe) subtraction"
-  (make-binary-one-type-qlosure "-" :num -')) 
+  (make-binary-one-type-qlosure "-" :req.core/num -')) 
 
 
 (fact "the `make-binary-one-type-qlosure` function works for arithmetic too"
@@ -468,7 +432,7 @@
 
 (def «≤»
   "binary Qlosure returns :bool based on whether its 2 :num arguments satisfy (arg1 ≤ arg2)"
-  (make-binary-one-type-qlosure "≤" :num <=)) 
+  (make-binary-one-type-qlosure "≤" :req.core/num <=)) 
 
 
 (fact "`make-binary-one-type-qlosure` works for ad hoc definitions, too"
@@ -484,8 +448,8 @@
 ;; TODO fix these to use (req-type?)
 
 (def «neg»
-  "defines a Qlosure that negates a single :num argument"
-  (make-unary-qlosure "neg" :num -)) 
+  "defines a Qlosure that negates a single :req.core/num argument"
+  (make-unary-qlosure "neg" :req.core/num -)) 
 
 (fact "a unary Qlosure can be built wit `make-unary-qlosure"
   (let [negger (req-with [«neg» 1 «neg» false 4 8])]
@@ -496,7 +460,7 @@
 
 (def «neg-even?»
   "creates a Qlosure that answers `true` if its :int argument is negative AND even"
-  (make-unary-qlosure "neg-even?" :int
+  (make-unary-qlosure "neg-even?" :req.core/int
   (partial #(and (neg? %) (even? %)))))
 
 
@@ -513,8 +477,8 @@
 ;; multiple result values
 
 (def «3x»
-  "a 1-ary Qlosure which produces three copies of its :any argument"
-  (make-unary-qlosure "3x" :any
+  "a 1-ary Qlosure which produces three copies of its :thing argument"
+  (make-unary-qlosure "3x" :req.core/thing
   (partial #(list % % %))))
 
 
@@ -537,8 +501,8 @@
 
 
 (def «3xVec»
-  "1-ary Qlosure which produces a Clojure vector containing 3x copies of its :any arg"
-  (make-unary-qlosure "3xVec" :any
+  "1-ary Qlosure which produces a Clojure vector containing 3x copies of its :thing arg"
+  (make-unary-qlosure "3xVec" :req.core/thing
   (partial #(list (vector % % %)))))
 
 
@@ -642,16 +606,16 @@
 ;; Immortal items
 
 (fact "req-type? returns true or false if the item has the given req-type keyword"
-  (req-type? :int 88) => true
-  (req-type? :bool 88) => false
-  (req-type? :bool false) => true
-  (req-type? :vec [88]) => true
+  (req-type? :req.core/int 88) => true
+  (req-type? :req.core/bool 88) => false
+  (req-type? :req.core/bool false) => true
+  (req-type? :req.core/vec [88]) => true
   )
 
 (fact "an Immortal item has the req-type of its :value"
-  (req-type (->Immortal 99)) => :int
-  (req-type (->Immortal false)) => :bool
-  (req-type (->Immortal 9/2)) => :num
+  (req-type (->Immortal 99)) => :req.core/int
+  (req-type (->Immortal false)) => :req.core/bool
+  (req-type (->Immortal 9/2)) => :req.core/num
   )
 
 (fact "an Immortal item prints with the ⥀ character appended"
@@ -661,8 +625,8 @@
   )
 
 (def «stringer»
-  "a 1-ary Qlosure which wants an :int and applies `#(str %)`"
-  (make-unary-qlosure "stringer" :int (partial #(str %))))
+  "a 1-ary Qlosure which wants an :req.core/int and applies `#(str %)`"
+  (make-unary-qlosure "stringer" :req.core/int (partial #(str %))))
 
 
 ; (fact "a Qlosure that wants a req-type also will want an Immortal of that req-type"

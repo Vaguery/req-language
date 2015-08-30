@@ -139,13 +139,27 @@
 
 ;; ReQ type system
 
+(def req (->  (make-hierarchy)
+              (derive ::int ::num)
+              (derive ::float ::num)
+              (derive ::bool ::thing)
+              (derive ::num ::thing)
+              (derive java.lang.Number ::num)
+              (derive java.lang.Long ::int)
+              (derive java.lang.Double ::float)
+              (derive java.lang.Boolean ::bool)
+              (derive java.math.BigDecimal ::float)
+              (derive clojure.lang.BigInt ::int)
+              ))
+
+
 (def req-matchers
   {
-    :int integer? ;; most specific
-    :num number?
-    :bool boolean?
-    :vec vector?
-    :any some?})  ;; least specific
+    ::int integer? ;; most specific
+    ::num number?
+    ::bool boolean?
+    ::vec vector?
+    ::thing some?})  ;; least specific
 
 
 (defn req-type
@@ -153,12 +167,12 @@
   [item]
   (cond
     (immortal? item) (req-type (:value item))
-    (integer? item) :int
-    (float? item) :float
-    (number? item) :num
-    (boolean? item) :bool
-    (vector? item) :vec
-    :else :any
+    (isa? req (class item) ::int) ::int
+    (isa? req (class item) ::float) ::float
+    (isa? req (class item) ::num) ::num
+    (isa? req (class item) ::bool) ::bool
+    (vector? item) ::vec
+    :else ::thing
     ))
 
 (defn req-type?
