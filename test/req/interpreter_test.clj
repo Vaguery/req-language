@@ -151,3 +151,139 @@
     (readable-queue (step (step two-ps))) => ["«1+⦿»" "4" "8" "«2+⦿»"]
     (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
     (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]))
+
+
+;; multiple result values can be returned from interactions
+
+
+(def «3x»
+  "a 1-ary Qlosure which produces three copies of its (any-type) argument"
+  (make-unary-qlosure "3x" :req.items/thing
+  (partial #(list % % %))))
+
+
+(fact "multiple return values (returned as a Clojure list) are pushed onto the queue"
+  (let [tripler (req-with [«3x» -1 «3x» «3x» false -4 8])]
+    (readable-queue (nth-step tripler 1)) =>
+      ["«3x»" "«3x»" "false" "-4" "8" "-1" "-1" "-1"]
+    (readable-queue (nth-step tripler 2)) =>
+      ["false" "-4" "8" "-1" "-1" "-1" "«3x»" "«3x»" "«3x»"]
+    (readable-queue (nth-step tripler 3)) =>
+      ["«3x»" "«3x»" "-4" "8" "-1" "-1" "-1" "false" "false" "false"]
+    (readable-queue (nth-step tripler 4)) =>
+      ["-4" "8" "-1" "-1" "-1" "false" "false" "false" "«3x»" "«3x»" "«3x»"]
+    (readable-queue (nth-step tripler 5)) =>
+      ["«3x»" "«3x»" "8" "-1" "-1" "-1" "false" "false" "false" "-4" "-4" "-4"]
+      ;; and so on...
+    (readable-queue (nth-step tripler 32)) =>
+      ["-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "-1" "false" "false" "false" "false" "false" "false" "false" "false" "false" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "-4" "8" "8" "8" "8" "8" "8" "8" "8" "8" "«3x»" "«3x»" "«3x»"]))
+
+
+;; collections can be returned from interactions
+
+
+(def «3xVec»
+  "1-ary Qlosure which produces a Clojure vector containing 3x copies of its :thing arg"
+  (make-unary-qlosure "3xVec" :req.items/thing
+  (partial #(list (vector % % %)))))
+
+
+(fact "for a collection result to be handled correctly by the ReQ interpreter,
+  the :transition function should wrap it in a list"
+  (let [tripler (req-with [«3xVec» -1  false «3xVec» -4 «3xVec» 8])]
+    (readable-queue (step tripler)) =>
+      ["false" "«3xVec»" "-4" "«3xVec»" "8" "[-1 -1 -1]"]
+    (readable-queue (nth-step tripler 2)) =>  
+      ["-4" "«3xVec»" "8" "[-1 -1 -1]" "[false false false]"]
+    (readable-queue (nth-step tripler 3)) =>  
+      ["8" "[-1 -1 -1]" "[false false false]" "[-4 -4 -4]"]))
+
+
+;;
+;; Nullary items
+;;
+;; A Nullary is like a Qlosure, except that it has no arguments and thus no :wants. 
+;; Whenever a Nullary is executed, it produces its result
+
+
+(fact "a Nullary has a token it shows when printed, like a Qlosure"
+  (str (make-nullary "beep" nil)) => "«beep»")
+
+
+(def silly
+  "a Nullary which produces the number 29 when executed"
+  (make-nullary "29" (constantly 29))) ;; definitely NOT an exciting example!
+
+
+(fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
+  (readable-queue (req-with [silly false])) => ["«29»" "false"]
+  (readable-queue (step (req-with [silly false]))) => ["false" "29"])
+
+
+;; Nullary "seeds"
+
+
+(def eights
+  "a Nullary which produces itself and a number 8 every time it's executed"
+  (make-seed "8s" 8))
+
+
+(fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
+  (let [eighty (req-with [eights false])]
+    (readable-queue eighty) => ["«8s»" "false"]
+    (readable-queue (step eighty)) => ["false" "«8s»" "8"]
+    (readable-queue (nth-step eighty 2)) => ["«8s»" "8" "false"]
+    (readable-queue (nth-step eighty 3)) => ["8" "false" "«8s»" "8"]))
+
+
+;; Nullary "timers"
+
+
+(def c
+  "a simple timer that counts from 2 to 4, then disappears and becomes 4"
+  (make-timer 2 4))
+
+
+(fact "a Nullary timer advances at every execution, and eventually becomes its end value"
+  (readable-queue (req-with [c false])) => ["«timer:2-4»" "false"]
+  (readable-queue (step (req-with [c false]))) => ["false" "«timer:3-4»"]
+  (readable-queue (step (step (req-with [c false])))) => ["«timer:3-4»" "false"]
+  (readable-queue (step (step (step (req-with [c false]))))) => ["false" "4"])
+
+
+(def c
+  "a Nullary timer with a payload: it emits :foo on every execution"
+  (make-timer 2 11 :foo))
+
+
+(fact "a Nullary timer with a payload emits its payload every cycle, then dissolves"
+  (let [timey (req-with [c false])]
+    (readable-queue (nth-step timey 0)) => ["«timer:2-11»" "false"]
+    (readable-queue (nth-step timey 1)) => ["false" "«timer:3-11»" ":foo"]
+    (readable-queue (nth-step timey 2)) => ["«timer:3-11»" ":foo" "false"]
+    (readable-queue (nth-step timey 3)) => [":foo" "false" "«timer:4-11»" ":foo"]
+    (readable-queue (nth-step timey 4)) => ["false" "«timer:4-11»" ":foo" ":foo"]
+    (readable-queue (nth-step timey 5)) => ["«timer:4-11»" ":foo" ":foo" "false"]
+    (readable-queue (nth-step timey 16)) =>
+      [":foo" ":foo" ":foo" "false" "«timer:7-11»" ":foo" ":foo"]
+    (readable-queue (nth-step timey 32)) =>
+      [":foo" ":foo" "false" "«timer:9-11»" ":foo" ":foo" ":foo" ":foo" ":foo"]
+    (readable-queue (nth-step timey 210)) =>
+      [":foo" ":foo" ":foo" "false" "11" ":foo" ":foo" ":foo" ":foo" ":foo"]))
+
+
+;; Nullary loopers
+
+
+(def jenny
+  "a Nullary looper that eternally cycles through its vector contents, emitting the top item each step"
+  (make-looper [9 0 3 5 7 6 8]))
+
+
+(fact "a Nullary looper cycles its (sequence) payload, emitting the top item each step"
+  (let [her-number (req-with [jenny false])]
+    (readable-queue (nth-step her-number 0 )) => ["«[9 0 3 5 7 6 8]»" "false"]
+    (readable-queue (nth-step her-number 1 )) => ["false" "«[0 3 5 7 6 8 9]»" "9"]
+    ;; ... much later ...
+    (readable-queue (nth-step her-number 1202 )) =>
+      ["8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "false" "«[8 9 0 3 5 7 6]»" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9" "8" "6" "7" "5" "3" "0" "9"]))

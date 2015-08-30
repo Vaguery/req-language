@@ -299,3 +299,25 @@
 
 (fact "applying req-consume to an unwanted item produces a list containing the args"
   (req-consume p false) => (just [p false]))
+
+
+
+
+;; Immortal items
+
+(fact "an Immortal item prints with the ⥀ character appended"
+  (str (->Immortal 99)) => "99⥀"
+  (str (->Immortal false)) => "false⥀"
+  (str (->Immortal [1 [2]])) => "[1 [2]]⥀"
+  )
+
+(def «stringer»
+  "a 1-ary Qlosure which wants an :req.items/int and applies `#(str %)`"
+  (make-unary-qlosure "stringer" :req.items/int (partial #(str %))))
+
+
+; (fact "a Qlosure that wants a req-type also will want an Immortal of that req-type"
+;   (let [stringy (req-with [«stringer» false (->Immortal 88)])]
+;   (readable-queue (nth-step stringy 0)) => ["«stringer»" "false" "88⥀"]
+;   (readable-queue (nth-step stringy 1)) => ["false" "\"88\"" "88⥀"]
+;   ))
