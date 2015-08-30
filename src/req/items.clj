@@ -1,7 +1,42 @@
 (ns req.items)
 
 
+(defn new-queue 
+  "creates a new PersistentQueue populated with the specified collection"
+  ([] (clojure.lang.PersistentQueue/EMPTY))
+  ([contents] (into (clojure.lang.PersistentQueue/EMPTY) contents)))
+
+
+(defn append-this-to-queue
+  "adds one item to the tail of a queue; if it's a `sequential`, it is concatenated, otherwise it is pushed"
+  [q new-item]
+  (if (sequential? new-item)
+    (new-queue (concat q new-item))
+    (conj q new-item)))
+
+
+(defn queue-from-items
+  "creates a new queue from the `base` collection, and applies `append-this-to-queue` to add all the remaining items if needed"
+  [base & more-items]
+  (new-queue (reduce append-this-to-queue base more-items)))
+
+
+(defrecord Interpreter [queue])
+
+
+(defn req-with
+  "creates a new ReQinterpreter with the specified collection in its queue"
+  [items] (Interpreter. (new-queue items)))
+
+
+(defn readable-queue
+  "takes a ReQ interpreter and applies `map str` to its `:queue`"
+  [req]
+  (map str (:queue req)))
+
+
 ;; ReQ core type definitions and type-checking infrastructure
+
 
 (defn boolean?
   "is the item _specifically_ the value `true` or the value `false`?"
@@ -130,7 +165,6 @@
     (req-consume item2 item1)))
 
 
-
 ;; the entire ReQ type system
 
 (def req (->  (make-hierarchy)
@@ -150,13 +184,6 @@
               ))
 
 
-(def req-matchers
-  {
-    ::int integer? ;; most specific
-    ::num number?
-    ::bool boolean?
-    ::vec vector?
-    ::thing some?})  ;; least specific
 
 
 (defn req-int?
@@ -220,3 +247,78 @@
   (= (req-type item) type))
 
 
+(def req-matchers
+  {
+    ::int integer? ;; most specific
+    ::num number?
+    ::bool boolean?
+    ::vec vector?
+    ::thing some?})  ;; least specific
+
+
+;; specialized ReQ item constructors
+
+
+(defn make-binary-one-type-qlosure
+  "produces a Qlosure with two arguments of the same specified type"
+  [token type-kw operator]
+  (let [match-pair {type-kw (type-kw req-matchers)}]
+  (make-qlosure
+    token   
+    :wants match-pair
+    :transitions {type-kw 
+      (fn [item]
+        (make-qlosure
+          (str item token "⦿")
+          :wants match-pair
+          :transitions {type-kw (partial operator item)}))
+       }
+  )))
+
+
+(defn make-unary-qlosure
+  "produces a Qlosure with one argument of the specified type"
+  [token type-kw operator]
+  (let [match-pair {type-kw (type-kw req-matchers)}]
+  (make-qlosure
+    token   
+    :wants match-pair
+    :transitions {type-kw (partial operator)})))
+
+
+(defn make-seed
+  "creates a Nullary which emits its contents and persists"
+  [token contents]
+  (make-nullary
+    token
+    (fn [] (list (make-seed token contents) contents))))
+
+
+(defn make-timer
+  "creates a Nullary which counts from the first integer to the end; if there is a payload, it emits that every step"
+  ([state end]
+    (make-nullary
+      (str "timer:" state "-" end)
+      (fn [] 
+        (if (>= (inc state) end)
+          end
+          (make-timer (inc state) end)))))
+  ([state end contents]
+    (make-nullary
+      (str "timer:" state "-" end)
+      (fn [] 
+        (if (>= (inc state) end)
+        end
+        (list (make-timer (inc state) end contents) contents))))))
+
+
+(defn make-looper
+  "creates a Nullary looper from a collection; cycles the collection and emits the top item each step"
+  [collection]
+    (make-nullary
+      (str collection)
+      (fn [] 
+        (list 
+          (make-looper (into [] (concat (drop 1 collection) (take 1 collection))))
+          (first collection))
+  )))

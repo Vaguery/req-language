@@ -3,38 +3,6 @@
 (use '[req.items])
 
 
-(defn new-queue 
-  "creates a new PersistentQueue populated with the specified collection"
-  ([] (clojure.lang.PersistentQueue/EMPTY))
-  ([contents] (into (clojure.lang.PersistentQueue/EMPTY) contents)))
-
-
-(defn append-this-to-queue
-  "adds one item to the tail of a queue; if it's a `sequential`, it is concatenated, otherwise it is pushed"
-  [q new-item]
-  (if (sequential? new-item)
-    (new-queue (concat q new-item))
-    (conj q new-item)))
-
-
-(defn queue-from-items
-  "creates a new queue from the `base` collection, and applies `append-this-to-queue` to add all the remaining items if needed"
-  [base & more-items]
-  (new-queue (reduce append-this-to-queue base more-items)))
-
-
-(defrecord Interpreter [queue])
-
-
-(defn req-with
-  "creates a new ReQinterpreter with the specified collection in its queue"
-  [items] (Interpreter. (new-queue items)))
-
-
-(defn readable-queue
-  "takes a ReQ interpreter and applies `map str` to its `:queue`"
-  [req]
-  (map str (:queue req)))
 
 
 ;; interpreter stepping

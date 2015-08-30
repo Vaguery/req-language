@@ -1,6 +1,7 @@
 (ns req.instructions.imperative)
 
-(use '[req.interpreter])
+(use '[req.interpreter]
+     '[req.items])
 
 
 
