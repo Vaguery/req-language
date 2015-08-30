@@ -1,7 +1,8 @@
 (ns req.interpreter-test
   (:use midje.sweet)
   (:use [req.core]
-        [req.interpreter])
+        [req.interpreter]
+        [req.items])
   )
 
 ;; queues
@@ -75,3 +76,78 @@
   ))
 
 
+;; The interpreter cycle:
+;;   pop an item
+;;   if it's an interpreter instruction, do it
+;;   if it interacts with anything on the queue,
+;;     - pop everything it skips
+;;     - create the interaction result(s)
+;;     - push the popped things to the tail of the queue
+;;     - push the result(s) onto the tail of the queue
+;;     - push any immortal arguments to the tail of the queue
+;;   if it doesn't interact, push it to the tail of the queue
+
+
+;; Qlosures on the queue
+
+
+(def p
+  "polymorphic 2-ary Qlosure implementing both ::num addition and ::vec concatenation"
+  (make-qlosure
+    "+"                             
+    :wants
+       {:num1 number?, :vec1 vector?}     
+    :transitions
+      {:num1                              
+        (fn [item]
+          (make-qlosure
+            (str item "+⦿")
+            :wants {:num2 number?}
+            :transitions {:num2 (partial + item)}))
+       :vec1
+        (fn [item]
+          (make-qlosure
+            (str item "+⦿")
+            :wants {:vec2 vector?}
+            :transitions {:vec2 (partial into item)}))}))
+
+
+(fact "a ReQ interpreter with a Qlosure with no targets just keeps it"
+  (readable-queue (step (req-with [p false]))) => ["false", "«+»"]
+  (readable-queue (step (req-with [p]))) => ["«+»"])
+
+
+(fact "a Qlosure will consume the nearest argument and produce an intermediate"
+  (readable-queue (step (req-with [p 1 2 4 8]))) => ["2" "4" "8" "«1+⦿»"]
+  (:queue (step (step (req-with [p 1 2 4 8])))) => [4 8 3]
+  (:queue (step (step (step (req-with [p 1 2 4 8]))))) => [8 3 4])
+
+
+(fact "two Qlosure items will consume arguments according to the queue dynamics"
+  (let [two-ps (req-with [p 1 p 2 4 8])]
+    (str (last (:queue (step two-ps)))) => "«1+⦿»"
+    (readable-queue (nth-step two-ps 1)) =>  ["«+»" "2" "4" "8" "«1+⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1+⦿»" "«2+⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["«2+⦿»" "8" "5"]
+    (readable-queue (nth-step two-ps 4)) =>  ["5" "10"]))
+
+
+(fact "Qlosure items will still skip (and requeue) unwanted items as needed"
+  (let [two-ps (req-with [p 1 p false 4 8])]
+    (readable-queue (nth-step two-ps 1)) =>  ["«+»" "false" "4" "8" "«1+⦿»"]
+    (readable-queue (nth-step two-ps 2)) =>  ["8" "«1+⦿»" "false" "«4+⦿»"]
+    (readable-queue (nth-step two-ps 3)) =>  ["false" "«4+⦿»" "9"]
+    (readable-queue (nth-step two-ps 4)) =>  ["«4+⦿»" "9" "false"]
+    (readable-queue (nth-step two-ps 5)) =>  ["false" "13"]
+  ))
+
+
+;; the following is CURRENTLY correct for the final ReQ language spec...
+;; but in the long term, Qlosures should be able to act as viable arguments
+;; for other Qlosures, if their :type matches
+(fact "stepping through with two Qlosures which might interact (some day) on the interpreter"
+  (let [two-ps (req-with [p p 1 2 4 8])]
+    (readable-queue (step two-ps)) => ["2" "4" "8" "«+»" "«1+⦿»"]
+    (readable-queue (step (step two-ps))) => ["«1+⦿»" "4" "8" "«2+⦿»"]
+    (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
+    (readable-queue (step (step (step (step two-ps))))) => ["5" "10"]))
