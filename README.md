@@ -1,43 +1,59 @@
 # ReQ
 
-`ReQ` (pronounced "wreck" or "re-queue", depending on how long you've tried to use it) is a language for genetic programming. Its... well, it's odd, see.
+`ReQ`---pronounced "re-queue" or "wreck", depending on how long you've stared at it---is a new language intended for genetic programming applications. It's a queue-based (as opposed to stack-based) language, with a strong and extensible type system, tight integration to Clojure (in which it's written), polymorphic monadic functional style, and surprisingly promiscuous computational dynamics.
 
-The ReQ interpreter uses a single queue for running programs. All ReQ "items" (or "tokens" or ... OK, I'm going to call them "Qlosures" because they're not all closures but some are and they can almost all make closures in one way or another, and Clojure has `Closure` as a protected word...) act a bit like messages, and a bit like objects.
+In other words, it's _not for people_. My design goals are simple, even if the result isn't: the language is relatively small but extensible, and the path for extending the core libraries to work in a specific domain is as simple as I can manage to make it. This simplicity of setup comes with some trade-offs, however....
 
-The interpreter cycle is quite simple:
+The `ReQ` interpreter queue is loaded with the initial program tokens, and in each processing cycle the interpreter:
 
-1. pop the next item off the queue
-2. determine whether that item _addresses_ or _is addressed by_ the interpreter itself (some instructions, for instance, affect interpreter state); if it does, do what's expected
-3. if the item and the interpreter do not address one another, determine whether the popped item addresses or is addressed by the next item on the queue; if so, do what's expected, and push the result onto the (tail of the) queue
-4. if the popped item does not interact with any items found on the queue (that is, if the queue undergoes a full cycle), requeue it
-5. update any `channel` states, if there are connections from the outside world
+1. pops the next item from the queue, placing it in the "hot seat"
+2. decide whether the item in the hot seat _wants_ the new top item on the queue; if it does want that item as an argument, it _consumes_ it, immediately pushing the result(s) to the tail of the queue
+3. if the item in the hot seat doesn't want the top item, decide whether it _is wanted by_ the top item on the queue; if it is wanted, then that item _consumes_ the one in the hot seat, immediately pushing the result(s) to the tail of the queue
+4. if neither of the item in the hot seat and the top queue item _wants_ the other, pop the top item and send it to the tail of the queue, leaving the item in the hot seat, and `GOTO 2 or 5`
+5. if the item in the hot seat doesn't interact with _any_ items found on the queue (that is, if the queue pops through a full cycle), send the item in the hot seat to the tail and carry on
+6. update any `Channel` states, if there are connections from the outside world
 
 That's it.
 
+One `ReQ` item "wants" another as an _argument_. Functions like `«+»` or `«dup»` "want" any argument they could potentially act on in any of their polymorphic meanings; for example, `«+»` can add numbers, points, vectors or matrices (of the right size), or it can concatenate strings or collections, or produce the union of two sets. The "pure" function therefore _wants_ all those types of item as a potential argument, but when it _consumes_ an argument it becomes a new _partially applied function_ (a `Qlosure`) with a new set of "wants". If a particular `«+»` item consumes an `81`, the resulting `Qlosure` item will want numbers only---not strings or sets or songs. If instead `«+»` consumes a vector `[3.2 9.1]`, the resulting `Qlosure` item can "want" several things, in a preferred order: it can do "vector addition" if it finds another 2-element numerical vector first, or "concatenation" if it finds some other collection (of any sort) first.
+
+When the last argument of a `Qlosure` is assigned, the result is produced. So to add `17+2` with `«+»`, the process involves _four_ distinct `ReQ` items going through two distinct stages:
+
+```text
+«+» + 17 -> «17+_»   ;; function «+» wants 17, consumes it, produces Qlosure «17+_»
+«17+_» + 2 -> 19     ;; Qlosure «17+_» wants 2, consumes it, produces 19
+```
+
+A few important observations:
+
+- `ReQ` scripts never "terminate" in the sense other computational systems are expected to do. A queue filled with non-interacting literals will cycle forever; even an empty queue can be thought of as "cycling".
+- Communication with the "outside world" occurs through special `Channel` items. The can hold a single value, and can be read and written to by instructions in the same way other `ReQ` items interact with one another.
+- Because of the unusual "sorting" behavior of the queue, the _partial_ token order determines the detailed dynamics of the program. The same tokens in slightly different orders can have dramatically different meanings, but will almost certainly sort themselves out into _some_ result in any case.
+
 ## Status
 
-Not working yet. Close, but the design is still emerging.
+Close. More news soon.
 
 ### Done
 
-- ReQ interpreter as a Clojure record
-- queue works as designed
-- working sketch of partial application (using "Qlosure" records) for unary and some binary instructions
-- some imperative instructions (need to be reworked so they use `:self|` channel)
-- Added a simple framework for creating "Nullary" items, which run an arity-0 function whenever they're in the hot seat. These will be useful in creating persistent values consumed as arguments by other functions
-- Immortal items
+- `ReQ` interpreter
+- `Qlosure` items
+- `Nullary` items: `Qlosure` items with no arguments
+- `Immortal` items: wrapper around any standard `ReQ` item, protecting it from being consumed when used as an argument
+- `Channel` items: `Immortal` items which can be written and read by "the outside world"
+- convenience functions for producing problem-specific `ReQ` items
 
 ### Active development
 
-- Channels
-- mixed binary Qlosures
-- "gatherers": recursive Qlosures for collections
-- `self|` channel for imperative instructions
+- `self|` channel for using imperative instructions
+- channel list in interpreter record
+- instruction definitions stored in interpreter record
+
+- `Gatherer` items: `Qlosure` items that build collection types
+- convenience methods for quickly defining mixed-type `Qlosure` items
 
 ### To Do
 
-- channel list in interpreter record
-- instruction definitions stored in interpreter record
 - `«fork»` and other instructions for concurrency
 - search:
     - random code generation
@@ -46,8 +62,10 @@ Not working yet. Close, but the design is still emerging.
     - mutation
     - hillclimbing
     - lexicase selection
-- minimum viable release:
-    - working interpreter with: Channels; convenient ways to define new instructions and types; works for arbitrary instruction Qlosures (any number or type of arguments and return types); problem definition; training and test data; 
+
+### Minimum viable release:
+
+A working interpreter with: Channels; convenient ways to define new instructions and types; works for arbitrary instruction Qlosures (any number or type of arguments and return types); problem definition; training and test data; 
 
 ### Some day
 
