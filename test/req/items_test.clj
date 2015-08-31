@@ -425,6 +425,7 @@
   (req-wants «doubler» big-old-123) => :req.items/int
   ))
 
+
 (fact "a Qlosure that is Immortal still has the same wants as its value"
   (let [always-subtract (immortalize «-»)]
     (req-wants always-subtract 29) => :req.items/num))
@@ -451,7 +452,7 @@
   (readable-queue (nth-step stringy 4)) => ["123123" "456456" "«doubler»⥀" "100100"]))
 
 
-(fact "an Immortal item is not consumed when it consumes another item either"
+(fact "an Immortal item is not consumed when it consumes another Immortal item either"
   (let [big-old-123 (immortalize 123)
         stringy (req-with [(immortalize «doubler») 100 big-old-123 456])]
   (readable-queue (nth-step stringy 0)) => ["«doubler»⥀" "100" "123⥀" "456"]
@@ -466,6 +467,79 @@
 
 
 (fact "a Channel has an id and a value, which is shown as '?' if unset"
-  (str (->Channel "foo" nil :req.items/int)) => "≋:foo|?|:req.items/int:≋"
-  (str (->Channel "foo" 77 :req.items/int)) => "≋:foo|77|:req.items/int:≋"
+  (str (->Channel "foo" nil)) => "⬍foo|?⬍"
+  (str (->Channel "foo" 77)) => "⬍foo|77⬍"
   )
+
+
+(fact "`channel?` returns true for Channel items"
+  (channel? (->Channel "x" :foo))=> true
+  (channel? (->Immortal :foo))=> false
+  )
+
+
+(fact "`silent-channel?` returns true if the argument is an empty channel Channel"
+  (silent-channel? (->Channel "x" nil))=> true
+  (silent-channel? (->Channel "x" 8182))=> false
+  (silent-channel? 8182)=> false)
+
+
+(fact "`active-channel?` returns true if the argument is an empty channel Channel"
+  (active-channel? (->Channel "x" nil))=> false
+  (active-channel? (->Channel "x" 8182))=> true
+  (active-channel? 8182)=> false)
+
+
+(fact "the req-type of a Channel is the req-type of its contents"
+  (req-type (->Channel "x" 88)) => :req.items/int
+  )
+
+
+(fact "the req-type of an empty Channel is ::channel"
+  (req-type (->Channel "x" nil)) => :req.items/channel
+  )
+
+
+(fact "the req-type of a Channel is the req-type of its current contents (not its specifier)"
+  (req-type (->Channel "x" 88)) => :req.items/int
+  )
+
+
+(fact "a Channel still has the same wants as its value"
+  (let [channel-x (->Channel "x" «-»)]
+    (req-wants channel-x 29) => :req.items/num))
+
+
+(fact "an empty Channel has no wants"
+  (let [channel-x (->Channel "x" nil)]
+    (req-wants channel-x 29) => false))
+
+
+(fact "a Channel item is not consumed by a Qlosure that uses its value as an argument"
+    (let [channel-x (->Channel "x" 123)
+          stringy (req-with [«doubler» false «-» channel-x])]
+    (readable-queue (nth-step stringy 0)) => ["«doubler»" "false" "«-»" "⬍x|123⬍"]
+    (readable-queue (nth-step stringy 1)) => ["false" "«-»" "123123" "⬍x|123⬍"]
+    (readable-queue (nth-step stringy 2)) => ["«-»" "123123" "⬍x|123⬍" "false"]
+    (readable-queue (nth-step stringy 3)) => ["false" "123123" "«123-⦿»" "⬍x|123⬍"]
+    (readable-queue (nth-step stringy 4)) => ["123123" "«123-⦿»" "⬍x|123⬍" "false"]
+    (readable-queue (nth-step stringy 5)) => ["«123-⦿»" "⬍x|123⬍" "false" "123123"]
+    (readable-queue (nth-step stringy 6)) => ["false" "123123" "0" "⬍x|123⬍"]
+    ))
+
+
+
+(fact "a Channel item is not consumed when it consumes another item either"
+  (let [stringy (req-with [(->Channel "x" «doubler») 100 123 456])]
+  (readable-queue (nth-step stringy 0)) => ["⬍x|«doubler»⬍" "100" "123" "456"]
+  ;; ...
+  (readable-queue (nth-step stringy 4)) => ["123123" "456456" "⬍x|«doubler»⬍" "100100"]))
+
+
+(fact "a Channel item is not consumed when it consumes another Channel item either"
+  (let [big-old-123 (->Channel "x" 123)
+        stringy (req-with [(->Channel "y" «doubler») 100 big-old-123 456])]
+  (readable-queue (nth-step stringy 0)) => ["⬍y|«doubler»⬍" "100" "⬍x|123⬍" "456"]
+  (readable-queue (nth-step stringy 22)) =>["100100" "123123" "456456" "123123"
+                                            "123123" "123123" "123123" "⬍y|«doubler»⬍"
+                                            "⬍x|123⬍"]))

@@ -71,10 +71,36 @@
 
 ;; Channels
 
-(defrecord Channel [id value type]
+
+(defrecord Channel [id value]
   Object
   (toString [_] 
-    (str "≋:" id "|" (or value "?") "|" type ":≋")))
+    (str "⬍" id "|" (or value "?") "⬍")))
+
+
+(defn channel?
+  "returns true if the argument is an Channel record"
+  [item]
+  (instance? req.items.Channel item))
+
+
+(defn active-channel?
+  "returns true if the argument is a Channel record and has a set value"
+  [item]
+  (and (channel? item) (some? (:value item))))
+
+
+(defn silent-channel?
+  "returns true if the argument is a Channel record with :value nil"
+  [item]
+  (and (channel? item) (nil? (:value item))))
+
+
+(defn immortal-item?
+  "returns true if the argument is any kind of immortal item: an Immortal record, a Channel, etc"
+  [item]
+  (or (instance? req.items.Immortal item)
+      (instance? req.items.Channel item)))
 
 
 ;; Nullary items ("Qlosures with no arguments")
@@ -117,6 +143,7 @@
   [item]
   (cond
     (immortal? item) (get-wants (:value item))
+    (active-channel? item) (get-wants (:value item))
     :else (:wants item)))
 
 
@@ -174,11 +201,11 @@
   [actor item]
   (if (req-wants actor item)
     (cond
-      (and (immortal? actor) (immortal? item))
+      (and (immortal-item? actor) (immortal-item? item))
         (list ((get-transition (:value actor) (:value item)) (:value item)) actor item)
-      (immortal? actor)
+      (immortal-item? actor)
         (list ((get-transition (:value actor) item) item) actor)
-      (immortal? item)
+      (immortal-item? item)
         (list ((get-transition actor (:value item)) (:value item)) item)
       :else ((get-transition actor item) item))
   (list actor item)))
@@ -204,6 +231,8 @@
               (derive ::bool ::thing)
               (derive ::num ::thing)
               (derive ::nullary ::thing)
+              (derive ::qlosure ::thing)
+              (derive ::channel ::thing)
               (derive req.items.Nullary ::nullary)
               (derive req.items.Qlosure ::qlosure)
               (derive java.lang.Number ::num)
@@ -261,6 +290,8 @@
   [item]
   (cond
     (immortal? item) (req-type (:value item))
+    (silent-channel? item) ::channel
+    (active-channel? item) (req-type (:value item))
     (qlosure? item) (:type item)
     (nullary? item) ::nullary
     (req-int? item) ::int
@@ -270,6 +301,7 @@
     (req-vec? item) ::vec
     :else ::thing
     ))
+
 
 (defn req-type?
   "returns true when the req-type is that if the requested item"

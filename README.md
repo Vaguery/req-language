@@ -32,7 +32,7 @@ Not working yet. Close, but the design is still emerging.
 - Channels
 - mixed binary Qlosures
 - "gatherers": recursive Qlosures for collections
-- `:self|` channel for imperative instructions
+- `self|` channel for imperative instructions
 
 ### To Do
 
@@ -344,21 +344,21 @@ The role of "variables" in `ReQ` scripts is played by "Channels". Each Channel h
 
 As shorthand in the following discussion I'll try to use this nomenclature, which is still being developed as the code gets written:
 
-- `≋:x12|«int»|nil≋` is a channel named `:x12`, with (`ReQ`) type `:int` but no set value
-- `≋:x12|«int»|8812≋` now contains the value `8812`
-- `≋:out|«any»|nil≋` is a channel named `:out` with type `:any`, meaning it can be set to any type
-- I think I'll refer to channels in passing with a shorthand like `:x12|` (with the vertical bar as part of the name, to differentiate them from standard keywords)
+- `⬍x12|?⬍` is a channel named `x12|` with no set value
+- `⬍x12|8812⬍` now contains the value `8812`
+- `⬍out|?⬍` is a channel named `out|`
+- I think I'll refer to channels in passing with a shorthand like `x12|` (with the vertical bar as part of the name, to differentiate them from standard keywords)
 
 Channels are not consumed by instructions, being born "immortal". That is, whether they are actor or argument, they will remain on the queue even after contributing their value.
 
-A Channel responds to the "wants" of other Qlosure items as if it were the type of its contents (not its specified type). So `≋:out|«any»|9.2≋` is wanted by the `:+` instruction; the value is provided as an argument, while the Channel reference itself persists (being immortal). For example:
+A Channel responds to the "wants" of other Qlosure items as if it were the type of its contents (not its specified type). So `⬍out|9.2⬍` is wanted by the `:+` instruction; the value is provided as an argument, while the Channel reference itself persists (being immortal). For example:
 
 ~~~ text
-[:+ ≋:z81|«any»|9.2≋ 12]
-:+ [≋:z81|«any»|9.2≋ 12]      ;; :+ in the hot seat
-[12 «9.2+_» ≋:z81|«any»|9.2≋] ;; ≋:z81|«any»|9.2≋ "is" 9.2, and is also immortal
-12 [«9.2+_» ≋:z81|«any»|9.2≋] ;; 12 in the hot seat
-[≋:z81|«any»|9.2≋ 21.2]       ;; the Qlosure wants 12, produces the sum
+[:+ ⬍z81|9.2⬍ 12]
+:+ [⬍z81|9.2⬍ 12]      ;; :+ in the hot seat
+[12 «9.2+_» ⬍z81|9.2⬍] ;; ⬍z81|9.2⬍ "is" 9.2, and is also immortal
+12 [«9.2+_» ⬍z81|9.2⬍] ;; 12 in the hot seat
+[⬍z81|9.2⬍ 21.2]       ;; the Qlosure wants 12, produces the sum
 ...                           ;; cycles forever               
 ~~~
 
