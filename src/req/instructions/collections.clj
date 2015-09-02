@@ -1,4 +1,4 @@
-(ns req.instructions.imperative)
+(ns req.instructions.collections)
 
 (use '[req.interpreter]
      '[req.items])

@@ -1,7 +1,8 @@
-(ns req.imperative-test
+(ns req.collections-test
   (:use midje.sweet)
   (:use [req.core]
-        [req.interpreter])
+        [req.interpreter]
+        [req.instructions.collections])
   )
 
 ;; step: imperatives

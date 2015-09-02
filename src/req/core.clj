@@ -3,4 +3,4 @@
 (use  '[req.interpreter]
       '[req.items]
       '[req.instructions.bool]
-      '[req.instructions.imperative])
+      '[req.instructions.collections])
