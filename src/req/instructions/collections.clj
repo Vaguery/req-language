@@ -4,12 +4,12 @@
      '[req.items])
 
 
-(defn req-archive
-  "puts a copy of the entire queue at its tail"
-  [req]
-  (let [q (:queue req)]
-    (assoc req :queue (concat q q)))
-  )
+; (defn req-archive
+;   "puts a copy of the entire queue at its tail"
+;   [req]
+;   (let [q (:queue req)]
+;     (assoc req :queue (concat q q)))
+;   )
 
 
 (defn req-dup
@@ -39,16 +39,14 @@
 ;   ))
 
 
-; (defn req-pop
-;   "throws away the top item on the queue"
-;   [req]
-;   (let [q (:queue req)
-;         top (peek q)]
-;   (if (nil? top)
-;     req
-;     (assoc req :queue (pop q)))
-;   ))
-
+(defn req-pop
+  "returns a list of a popped item and the remainder of the collection"
+  [coll]
+  (if (seq coll)
+    (let [item (peek coll)]
+      (list item (pop coll))
+      )
+    coll))
 
 
 ; (defn req-prev

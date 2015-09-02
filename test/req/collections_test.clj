@@ -12,16 +12,29 @@
   (req-dup '(1 2 3 4)) => '(1 1 2 3 4)
   (req-dup [1 2 3 4]) => [1 2 3 4 4]
   (req-dup (new-queue [1 2 3 4])) => [2 3 4 1 1]
+  )
+
+
+(fact "req-dup returns the collection if it's empty"
   (req-dup '()) => '()
   (req-dup []) => []
   (req-dup (new-queue)) => []
+)
+
+
+(fact "when :pop is executed, a list holding a popped item and the remainder of the collection is returned"
+  (req-pop '(1 2 3 4)) => '( 1 (2 3 4))
+  (req-pop [1 2 3 4]) => '(4 [1 2 3])
+  (req-pop (new-queue [1 2 3 4])) => '(1 (2 3 4))
+  (class (second (req-pop (new-queue [1 2 3 4])))) => clojure.lang.PersistentQueue
   )
 
-; (fact "when :pop is executed, the top item on the queue is thrown away"
-;   (:queue (step (req-with [:pop 1 2 3 4 5]))) => (just [2 3 4 5])
-;   (count (:queue (step (req-with [:pop 2])))) => 0
-;   (count (:queue (step (req-with [:pop])))) => 0
-;   )
+
+(fact "req-pop returns the collection if it's empty"
+  (req-pop '()) => '()
+  (req-pop []) => []
+  (req-pop (new-queue)) => []
+)
 
 ; (fact "when :swap is executed, the top two items on the queue are switched (and sent to the end)"
 ;   (:queue (step (req-with [:swap 1 2 3 4 5]))) => (just [3 4 5 2 1])
