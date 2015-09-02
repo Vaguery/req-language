@@ -22,7 +22,7 @@
 )
 
 
-(fact "when :pop is executed, a list holding a popped item and the remainder of the collection is returned"
+(fact "when req-pop is executed, a list holding a popped item and the remainder of the collection is returned"
   (req-pop '(1 2 3 4)) => '( 1 (2 3 4))
   (req-pop [1 2 3 4]) => '(4 [1 2 3])
   (req-pop (new-queue [1 2 3 4])) => '(1 (2 3 4))
@@ -36,37 +36,17 @@
   (req-pop (new-queue)) => []
 )
 
-; (fact "when :swap is executed, the top two items on the queue are switched (and sent to the end)"
-;   (:queue (step (req-with [:swap 1 2 3 4 5]))) => (just [3 4 5 2 1])
-;   (:queue (step (req-with [:swap 1 2]))) => (just [2 1])
-;   (:queue (step (req-with [:swap 1]))) => (just [1])
-;   (:queue (step (req-with [:swap]))) => (just [])
-;   )
 
-; (fact "when :archive is executed, the entire queue is duplicated at its own tail"
-;   (:queue (step (req-with [:archive 1 2 3 4 5]))) => (just [1 2 3 4 5 1 2 3 4 5])
-;   (:queue (step (req-with [:archive]))) => (just [])
-;   )
+(fact "when req-archive is executed, the entire collection is conj'ed onto itself"
+  (req-archive '(1 2 3 4)) => '((1 2 3 4) 1 2 3 4)
+  (req-archive [1 2 3 4]) => '[1 2 3 4 [1 2 3 4]]
+  (req-archive (new-queue [1 2 3 4])) => '(1 2 3 4 (1 2 3 4))
+  (class (last (req-archive (new-queue [1 2 3 4])))) => clojure.lang.PersistentQueue
+  )
 
-; (fact "when :reverse is executed, the entire queue is flipped head-to-tail"
-;   (:queue (step (req-with [:reverse 1 2 3 4 5]))) => (just [5 4 3 2 1])
-;   (:queue (step (req-with [:reverse]))) => (just [])
-;   )
 
-; (fact "when :flush is executed, the entire queue is emptied"
-;   (:queue (step (req-with [:flush 1 2 3 4 5]))) => (just [])
-;   (:queue (step (req-with [:flush]))) => (just [])
-;   )
-
-; (fact "when :next is executed, the top item is sent to the tail"
-;   (:queue (step (req-with [:next 1 2 3 4 5]))) => (just [2 3 4 5 1])
-;   (:queue (step (req-with [:next 1]))) => (just [1])
-;   (:queue (step (req-with [:next]))) => (just [])
-;   )
-
-; (fact "when :prev is executed, the tail item is sent to the head"
-;   (:queue (step (req-with [:prev 1 2 3 4 5]))) => (just [5 1 2 3 4])
-;   (:queue (step (req-with [:prev 1]))) => (just [1])
-;   (:queue (step (req-with [:prev]))) => (just [])
-;   )
-
+(fact "req-archive puts an empty copy into the collection even if it was empty"
+  (req-archive '()) => '(())
+  (req-archive []) => [[]]
+  (req-archive (new-queue)) => [[]]
+)

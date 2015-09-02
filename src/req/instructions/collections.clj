@@ -4,12 +4,10 @@
      '[req.items])
 
 
-; (defn req-archive
-;   "puts a copy of the entire queue at its tail"
-;   [req]
-;   (let [q (:queue req)]
-;     (assoc req :queue (concat q q)))
-;   )
+(defn req-archive
+  "conj's a copy of the entire collection onto itself"
+  [coll]
+  (conj coll coll))
 
 
 (defn req-dup
