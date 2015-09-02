@@ -19,22 +19,20 @@
     coll))
 
 
-(defn req-flush
+(defn req-empty
   "empties the collection of all items"
   [coll]
   (empty coll)
   )
 
 
-; (defn req-next
-;   "sends the top item to the tail of the queue"
-;   [req]
-;   (let [q (:queue req)
-;         top (peek q)]
-;   (if (nil? top)
-;     req
-;     (assoc req :queue (conj (pop q) top)))
-;   ))
+(defn req-next
+  "conj's a popped item from a collection back onto it (which has no visible effect on vectors or lists, but rotates queues)"
+  [coll]
+  (if (seq coll)
+    (conj (pop coll) (peek coll))
+    coll))
+
 
 
 (defn req-pop
@@ -47,15 +45,6 @@
     coll))
 
 
-; (defn req-prev
-;   "sends the tail item to the head of the queue"
-;   [req]
-;   (let [q (:queue req)
-;         top (peek q)]
-;   (if (nil? top)
-;     req
-;     (req-with (cons (last q) (drop-last q))))
-;   ))
 
 
 ; (defn req-reverse

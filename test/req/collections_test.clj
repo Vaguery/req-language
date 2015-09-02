@@ -52,16 +52,31 @@
 )
 
 
-(fact "when req-flush is executed, the entire collection is emptied"
-  (req-flush '(1 2 3 4)) => '()
-  (req-flush [1 2 3 4]) => []
-  (req-flush (new-queue [1 2 3 4])) => '()
-  (class (req-flush (new-queue [1 2 3 4]))) => clojure.lang.PersistentQueue
+(fact "when req-empty is executed, the entire collection is emptied"
+  (req-empty '(1 2 3 4)) => '()
+  (req-empty [1 2 3 4]) => []
+  (req-empty (new-queue [1 2 3 4])) => '()
+  (class (req-empty (new-queue [1 2 3 4]))) => clojure.lang.PersistentQueue
   )
 
 
-(fact "req-flush works on empty collections, too"
-  (req-flush '()) => '()
-  (req-flush []) => []
-  (req-flush (new-queue)) => []
+(fact "req-empty works on empty collections, too"
+  (req-empty '()) => '()
+  (req-empty []) => []
+  (req-empty (new-queue)) => []
+)
+
+
+(fact "when req-next is executed, a popped item is conj'ed back onto the collection"
+  (req-next '(1 2 3 4)) => '(1 2 3 4)
+  (req-next [1 2 3 4]) => [1 2 3 4]
+  (req-next (new-queue [1 2 3 4])) => [2 3 4 1]
+  (class (req-next (new-queue [1 2 3 4]))) => clojure.lang.PersistentQueue
+  )
+
+
+(fact "req-next returns the collection if it's empty"
+  (req-next '()) => '()
+  (req-next []) => []
+  (req-next (new-queue)) => []
 )
