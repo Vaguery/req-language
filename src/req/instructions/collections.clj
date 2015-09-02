@@ -19,11 +19,11 @@
     coll))
 
 
-; (defn req-flush
-;   "empties the queue"
-;   [req]
-;   (req-with [])
-;   )
+(defn req-flush
+  "empties the collection of all items"
+  [coll]
+  (empty coll)
+  )
 
 
 ; (defn req-next

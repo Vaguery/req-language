@@ -50,3 +50,18 @@
   (req-archive []) => [[]]
   (req-archive (new-queue)) => [[]]
 )
+
+
+(fact "when req-flush is executed, the entire collection is emptied"
+  (req-flush '(1 2 3 4)) => '()
+  (req-flush [1 2 3 4]) => []
+  (req-flush (new-queue [1 2 3 4])) => '()
+  (class (req-flush (new-queue [1 2 3 4]))) => clojure.lang.PersistentQueue
+  )
+
+
+(fact "req-flush works on empty collections, too"
+  (req-flush '()) => '()
+  (req-flush []) => []
+  (req-flush (new-queue)) => []
+)
