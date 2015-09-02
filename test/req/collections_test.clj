@@ -2,15 +2,20 @@
   (:use midje.sweet)
   (:use [req.core]
         [req.interpreter]
+        [req.items]
         [req.instructions.collections])
   )
 
-;; step: imperatives
+;; collection instructions
 
-; (fact "when :dup is executed, the top item on the queue is doubled and sent to the tail"
-;   (:queue (step (req-with [:dup 1.2 3]))) => (just [1.2 3 1.2])
-;   (count (:queue (step (req-with [:dup])))) => 0
-;   )
+(fact "when req-dup is executed, two copies of a popped item are conj'ed onto the collection"
+  (req-dup '(1 2 3 4)) => '(1 1 2 3 4)
+  (req-dup [1 2 3 4]) => [1 2 3 4 4]
+  (req-dup (new-queue [1 2 3 4])) => [2 3 4 1 1]
+  (req-dup '()) => '()
+  (req-dup []) => []
+  (req-dup (new-queue)) => []
+  )
 
 ; (fact "when :pop is executed, the top item on the queue is thrown away"
 ;   (:queue (step (req-with [:pop 1 2 3 4 5]))) => (just [2 3 4 5])
