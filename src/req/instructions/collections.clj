@@ -42,9 +42,9 @@
   [coll]
   (if (seq coll)
     (cond 
-      (queue? coll) (new-queue (cons (last coll) (drop-last 1 coll)))
+      (queue? coll) (new-queue (cons (last coll) (butlast coll)))
       (list? coll) (reverse (into '() (cons (last coll) (butlast coll))))
-      (vector? coll) (into [] (cons (last coll) (drop-last 1 coll))))
+      (vector? coll) (into [] (cons (last coll) (butlast coll))))
     coll))
 
 
