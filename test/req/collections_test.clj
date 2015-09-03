@@ -136,3 +136,29 @@
 (fact "req-prev works on Interpreter instances"
   (:queue (req-prev (req-with [1 2 3 4]))) => [4 1 2 3]
   )
+
+
+
+(fact "when req-reverse is executed, the collection is flipped end-to-end"
+  (req-reverse '(1 2 3 4)) => '(4 3 2 1)
+  (list? (req-reverse '(1 2 3 4))) => true
+
+  (req-reverse [1 2 3 4]) => [4 3 2 1]
+  (vector? (req-reverse [1 2 3 4])) => true
+  
+  (req-reverse (new-queue [1 2 3 4])) => [4 3 2 1]
+  (queue? (new-queue [1 2 3 4])) => true
+  (queue? (req-reverse (new-queue [1 2 3 4]))) => true
+  )
+
+
+(fact "req-reverse returns the collection if it's empty"
+  (req-reverse '()) => '()
+  (req-reverse []) => []
+  (req-reverse (new-queue)) => []
+)
+
+
+(fact "req-reverse works on Interpreter instances"
+  (:queue (req-reverse (req-with [1 2 3 4]))) => [4 3 2 1]
+  )

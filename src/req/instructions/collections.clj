@@ -65,21 +65,27 @@
   "returns a list of a popped item and the remainder of the collection"
   [coll]
     (cond
-    (interpreter? coll)
-      (req-with (pop (:queue coll)))
-    (seq coll)
-      (list (peek coll) (pop coll))
-    :else coll))
+      (interpreter? coll)
+        (req-with (pop (:queue coll)))
+      (seq coll)
+        (list (peek coll) (pop coll))
+      :else coll))
 
 
 
 
-; (defn req-reverse
-;   "reverses the queue order"
-;   [req]
-;   (let [q (:queue req)]
-;     (assoc req :queue (reverse q)))
-;   )
+(defn req-reverse
+  "returns a collection of the same type with the elements reversed"
+  [coll]
+    (cond
+      (interpreter? coll)
+        (req-with (req-reverse (:queue coll)))
+      (seq coll)
+      (cond 
+        (queue? coll) (new-queue (reverse coll))
+        (list? coll) (reverse coll)
+        (vector? coll) (into [] (reverse coll)))
+      :else coll))
 
 
 ; (defn req-swap
