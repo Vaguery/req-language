@@ -69,7 +69,11 @@
 
 (fact "when req-next is executed, the left item moves to the right end"
   (req-next '(1 2 3 4)) => '(2 3 4 1)
+  (list? (req-next '(1 2 3 4))) => true
+
   (req-next [1 2 3 4]) => [2 3 4 1]
+  (vector? (req-next [1 2 3 4])) => true
+
   (req-next (new-queue [1 2 3 4])) => [2 3 4 1]
   (queue? (new-queue [1 2 3 4])) => true
   (queue? (req-next (new-queue [1 2 3 4]))) => true
@@ -86,8 +90,10 @@
 (fact "when req-prev is executed, the rightmost item moves to the left end"
   (req-prev '(1 2 3 4)) => '(4 1 2 3)
   (list? (req-prev '(1 2 3 4))) => true
+
   (req-prev [1 2 3 4]) => [4 1 2 3]
   (vector? (req-prev [1 2 3 4])) => true
+  
   (req-prev (new-queue [1 2 3 4])) => [4 1 2 3]
   (queue? (new-queue [1 2 3 4])) => true
   (queue? (req-prev (new-queue [1 2 3 4]))) => true

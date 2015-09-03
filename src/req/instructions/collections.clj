@@ -32,7 +32,7 @@
   (if (seq coll)
     (cond 
       (queue? coll) (conj (pop coll) (peek coll))
-      (list? coll) (concat (rest coll) (list (first coll)))
+      (list? coll) (reverse (into '() (concat (rest coll) (list (first coll)))))
       (vector? coll) (vec (concat (rest coll) (list (first coll)))))
     coll))
 
