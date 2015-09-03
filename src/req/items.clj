@@ -21,6 +21,12 @@
   (new-queue (reduce append-this-to-queue base more-items)))
 
 
+(defn queue?
+  "returns true only if the argument is a clojure.lang.PersistentQueue"
+  [item]
+  (= (type item) clojure.lang.PersistentQueue))
+
+
 ;; Interpreter items
 
 

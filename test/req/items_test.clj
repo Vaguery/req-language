@@ -16,6 +16,10 @@
   (boolean? nil) => false
   (boolean? (= 7 7)) => true)
 
+(fact "queue? returns true if the item is specifically a clojure.lang.PersistentQueue"
+  (queue? (new-queue)) => true
+  )
+
 
 (fact "the req-type hierarchy works"
   (isa? req :req.items/int :req.items/num) => true
@@ -69,6 +73,7 @@
 ;; req-list?
 ;; req-set?
 ;; req-queue?
+
 ;; req-interpreter?
 
 ;; the req-type of a Qlosure is its return type

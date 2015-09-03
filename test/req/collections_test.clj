@@ -67,11 +67,30 @@
 )
 
 
-(fact "when req-next is executed, a popped item is conj'ed back onto the collection"
-  (req-next '(1 2 3 4)) => '(1 2 3 4)
-  (req-next [1 2 3 4]) => [1 2 3 4]
+(fact "when req-next is executed, the left item moves to the right end"
+  (req-next '(1 2 3 4)) => '(2 3 4 1)
+  (req-next [1 2 3 4]) => [2 3 4 1]
   (req-next (new-queue [1 2 3 4])) => [2 3 4 1]
-  (class (req-next (new-queue [1 2 3 4]))) => clojure.lang.PersistentQueue
+  (queue? (new-queue [1 2 3 4])) => true
+  (queue? (req-next (new-queue [1 2 3 4]))) => true
+  )
+
+
+(fact "req-next returns the collection if it's empty"
+  (req-next '()) => '()
+  (req-next []) => []
+  (req-next (new-queue)) => []
+)
+
+
+(fact "when req-prev is executed, the rightmost item moves to the left end"
+  (req-prev '(1 2 3 4)) => '(4 1 2 3)
+  (list? (req-prev '(1 2 3 4))) => true
+  (req-prev [1 2 3 4]) => [4 1 2 3]
+  (vector? (req-prev [1 2 3 4])) => true
+  (req-prev (new-queue [1 2 3 4])) => [4 1 2 3]
+  (queue? (new-queue [1 2 3 4])) => true
+  (queue? (req-prev (new-queue [1 2 3 4]))) => true
   )
 
 

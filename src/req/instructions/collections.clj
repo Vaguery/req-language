@@ -27,10 +27,24 @@
 
 
 (defn req-next
-  "conj's a popped item from a collection back onto it (which has no visible effect on vectors or lists, but rotates queues)"
+  "moves the first item (leftmost) to the last position (tail), regardless of sequence type"
   [coll]
   (if (seq coll)
-    (conj (pop coll) (peek coll))
+    (cond 
+      (queue? coll) (conj (pop coll) (peek coll))
+      (list? coll) (concat (rest coll) (list (first coll)))
+      (vector? coll) (vec (concat (rest coll) (list (first coll)))))
+    coll))
+
+
+(defn req-prev
+  "moves the last item (rightmost) to the first position (left), regardless of sequence type"
+  [coll]
+  (if (seq coll)
+    (cond 
+      (queue? coll) (new-queue (cons (last coll) (drop-last 1 coll)))
+      (list? coll) (reverse (into '() (cons (last coll) (butlast coll))))
+      (vector? coll) (into [] (cons (last coll) (drop-last 1 coll))))
     coll))
 
 
@@ -64,15 +78,3 @@
 ;     (let [item-1 (peek q) item-2 (second q)]
 ;       (assoc req :queue (conj (pop (pop q)) item-2 item-1))))
 ;     ))
-
-; (def req-imperatives
-;   {
-;     :archive req-archive
-;     :dup     req-dup
-;     :flush   req-flush
-;     :next    req-next
-;     :reverse req-reverse
-;     :swap    req-swap
-;     :pop     req-pop
-;     :prev    req-prev
-;   })
