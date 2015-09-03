@@ -13,10 +13,13 @@
 (defn req-dup
   "two copies of a popped item are conj'ed onto the collection"
   [coll]
-  (if (seq coll)
-    (let [item (peek coll)]
-      (conj (pop coll) item item))
-    coll))
+  (cond
+    (interpreter? coll)
+      (req-with (req-dup (:queue coll)))
+    (seq coll)
+      (let [item (peek coll)]
+        (conj (pop coll) item item))
+    :else coll))
 
 
 (defn req-empty

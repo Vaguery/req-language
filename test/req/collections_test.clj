@@ -22,6 +22,11 @@
 )
 
 
+(fact "req-dup works on Interpreter instances"
+  (:queue (req-dup (req-with [1 2 3 4]))) => [2 3 4 1 1]
+  )
+
+
 (fact "when req-pop is executed, a list holding a popped item and the remainder of the collection is returned"
   (req-pop '(1 2 3 4)) => '( 1 (2 3 4))
   (req-pop [1 2 3 4]) => '(4 [1 2 3])

@@ -44,6 +44,12 @@
   (map str (:queue req)))
 
 
+(defn interpreter?
+  "returns true if the argument is an Interpreter instance"
+  [item]
+  (isa? (type item) req.items.Interpreter))
+
+
 ;; ReQ core type definitions and type-checking infrastructure
 
 
@@ -102,20 +108,22 @@
   (and (channel? item) (nil? (:value item))))
 
 
-(defn immortal-item?
-  "returns true if the argument is any kind of immortal item: an Immortal record, a Channel, etc"
-  [item]
-  (or (instance? req.items.Immortal item)
-      (instance? req.items.Channel item)
-      (= item ⬍SELF⬍)))
-
-
 ;; SELF channel
 
 (defrecord Self [])
 
 
 (def ⬍SELF⬍ (->Self)) ;; that's it
+
+
+;; helpers 
+
+(defn immortal-item?
+  "returns true if the argument is any kind of immortal item: an Immortal record, a Channel, etc"
+  [item]
+  (or (instance? req.items.Immortal item)
+      (instance? req.items.Channel item)
+      (= item ⬍SELF⬍)))
 
 
 ;; Nullary items ("Qlosures with no arguments")
