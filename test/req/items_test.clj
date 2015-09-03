@@ -548,3 +548,27 @@
   (readable-queue (nth-step stringy 22)) =>["100100" "123123" "456456" "123123"
                                             "123123" "123123" "123123" "⬍y|«doubler»⬍"
                                             "⬍x|123⬍"]))
+
+;; Interpreters
+
+
+(fact "an Interpreter is a kind of ::wrapped-collection"
+  (type (req-with [1 2 3])) => req.items.Interpreter
+  (isa? req req.items.Interpreter :req.items/wrapped-collection) => true
+  (isa? req (type (req-with [1 2 3])) :req.items/wrapped-collection) => true)
+
+
+;; ⬍SELF⬍ (the "self channel", but not a Channel)
+
+
+(fact "⬍SELF⬍ has no :wants"
+  (:wants ⬍SELF⬍) => nil)
+
+
+(fact "⬍SELF⬍ is (appears to be) a kind of Interpreter"
+  (type ⬍SELF⬍) => req.items.Self
+  (isa? req (type ⬍SELF⬍) :req.items/interpreter) => true)
+
+
+(fact "⬍SELF⬍ is immortal"
+  (immortal-item? ⬍SELF⬍) => true)

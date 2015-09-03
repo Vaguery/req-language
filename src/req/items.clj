@@ -106,7 +106,16 @@
   "returns true if the argument is any kind of immortal item: an Immortal record, a Channel, etc"
   [item]
   (or (instance? req.items.Immortal item)
-      (instance? req.items.Channel item)))
+      (instance? req.items.Channel item)
+      (= item ⬍SELF⬍)))
+
+
+;; SELF channel
+
+(defrecord Self [])
+
+
+(def ⬍SELF⬍ (->Self)) ;; that's it
 
 
 ;; Nullary items ("Qlosures with no arguments")
@@ -239,6 +248,9 @@
               (derive ::nullary ::thing)
               (derive ::qlosure ::thing)
               (derive ::channel ::thing)
+              (derive req.items.Interpreter ::interpreter)
+              (derive req.items.Self ::interpreter)
+              (derive ::interpreter ::wrapped-collection)
               (derive req.items.Nullary ::nullary)
               (derive req.items.Qlosure ::qlosure)
               (derive java.lang.Number ::num)
