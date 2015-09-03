@@ -81,19 +81,22 @@
       (interpreter? coll)
         (req-with (req-reverse (:queue coll)))
       (seq coll)
-      (cond 
-        (queue? coll) (new-queue (reverse coll))
-        (list? coll) (reverse coll)
-        (vector? coll) (into [] (reverse coll)))
+        (cond 
+          (queue? coll) (new-queue (reverse coll))
+          (list? coll) (reverse coll)
+          (vector? coll) (into [] (reverse coll)))
       :else coll))
 
 
-; (defn req-swap
-;   "pop the top two items and requeue them in swapped order"
-;   [req]
-;   (let [q (:queue req)]
-;     (if (< (count q) 2)
-;     req 
-;     (let [item-1 (peek q) item-2 (second q)]
-;       (assoc req :queue (conj (pop (pop q)) item-2 item-1))))
-;     ))
+(defn req-swap
+  "returns a collection with two items popped and conjed back in the reverse order"
+  [coll]
+    (cond
+      (interpreter? coll)
+        (req-with (req-swap (:queue coll)))
+      (seq coll)
+        (let [a (peek coll)
+              b (peek (pop coll))
+              rest (pop (pop coll))]
+          (conj rest a b))
+      :else coll))

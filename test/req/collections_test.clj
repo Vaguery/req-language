@@ -162,3 +162,28 @@
 (fact "req-reverse works on Interpreter instances"
   (:queue (req-reverse (req-with [1 2 3 4]))) => [4 3 2 1]
   )
+
+
+(fact "when req-swap is executed, the collection is flipped end-to-end"
+  (req-swap '(1 2 3 4)) => '(2 1 3 4)
+  (list? (req-swap '(1 2 3 4))) => true
+
+  (req-swap [1 2 3 4]) => [1 2 4 3]
+  (vector? (req-swap [1 2 3 4])) => true
+  
+  (req-swap (new-queue [1 2 3 4])) => [3 4 1 2]
+  (queue? (new-queue [1 2 3 4])) => true
+  (queue? (req-swap (new-queue [1 2 3 4]))) => true
+  )
+
+
+(fact "req-swap returns the collection if it's empty"
+  (req-swap '()) => '()
+  (req-swap []) => []
+  (req-swap (new-queue)) => []
+)
+
+
+(fact "req-swap works on Interpreter instances"
+  (:queue (req-swap (req-with [1 2 3 4]))) => [3 4 1 2]
+  )
