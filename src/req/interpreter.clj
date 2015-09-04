@@ -11,19 +11,19 @@
   [req]
   (let [hot-seat (peek (:queue req))
         tail (pop (:queue req))
-        popped-state (req-with tail)]
+        popped-state (make-interpreter tail)]
     (cond
       (imperative? hot-seat)
         ((:function hot-seat) popped-state)
       (nullary? hot-seat)
-        (req-with (queue-from-items tail ((:function hot-seat))))
+        (make-interpreter (queue-from-items tail ((:function hot-seat))))
       (seq (all-interacting-items hot-seat tail))
         (let [parts (split-with-interaction hot-seat tail)
               filler (first parts)
               target (first (second parts))
               result (ordered-consume hot-seat target)
               remainder (into [] (drop 1 (second parts)))]
-              (req-with 
+              (make-interpreter 
                 (queue-from-items remainder filler result)))
       :else
         (assoc req :queue (conj tail hot-seat)))))

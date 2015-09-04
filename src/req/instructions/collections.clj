@@ -8,7 +8,7 @@
   "conj's a copy of the entire collection onto itself"
   [coll]
   (if (interpreter? coll)
-    (req-with (req-archive (:queue coll)))
+    (make-interpreter (req-archive (:queue coll)))
     (conj coll coll)))
 
 
@@ -17,7 +17,7 @@
   [coll]
   (cond
     (interpreter? coll)
-      (req-with (req-dup (:queue coll)))
+      (make-interpreter (req-dup (:queue coll)))
     (seq coll)
       (let [item (peek coll)]
         (conj (pop coll) item item))
@@ -28,7 +28,7 @@
   "empties the collection of all items"
   [coll]
   (if (interpreter? coll)
-    (req-with (empty (:queue coll)))
+    (make-interpreter (empty (:queue coll)))
     (empty coll)))
 
 
@@ -37,7 +37,7 @@
   [coll]
     (cond
       (interpreter? coll)
-        (req-with (req-next (:queue coll)))
+        (make-interpreter (req-next (:queue coll)))
       (seq coll)
         (cond 
           (queue? coll) (conj (pop coll) (peek coll))
@@ -51,7 +51,7 @@
   [coll]
   (cond
     (interpreter? coll)
-      (req-with (req-prev (:queue coll)))
+      (make-interpreter (req-prev (:queue coll)))
     (seq coll)
       (cond 
         (queue? coll) (new-queue (cons (last coll) (butlast coll)))
@@ -66,7 +66,7 @@
   [coll]
     (cond
       (interpreter? coll)
-        (req-with (pop (:queue coll)))
+        (make-interpreter (pop (:queue coll)))
       (seq coll)
         (list (peek coll) (pop coll))
       :else coll))
@@ -79,7 +79,7 @@
   [coll]
     (cond
       (interpreter? coll)
-        (req-with (req-reverse (:queue coll)))
+        (make-interpreter (req-reverse (:queue coll)))
       (seq coll)
         (cond 
           (queue? coll) (new-queue (reverse coll))
@@ -93,7 +93,7 @@
   [coll]
     (cond
       (interpreter? coll)
-        (req-with (req-swap (:queue coll)))
+        (make-interpreter (req-swap (:queue coll)))
       (seq coll)
         (let [a (peek coll)
               b (peek (pop coll))

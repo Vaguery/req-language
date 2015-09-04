@@ -23,7 +23,7 @@
 
 
 (fact "req-dup works on Interpreter instances"
-  (:queue (req-dup (req-with [1 2 3 4]))) => [2 3 4 1 1]
+  (:queue (req-dup (make-interpreter [1 2 3 4]))) => [2 3 4 1 1]
   )
 
 
@@ -43,7 +43,7 @@
 
 
 (fact "req-pop works on Interpreter instances, but discards the popped item"
-  (:queue (req-pop (req-with [1 2 3 4]))) => [2 3 4]
+  (:queue (req-pop (make-interpreter [1 2 3 4]))) => [2 3 4]
   )
 
 
@@ -63,7 +63,7 @@
 
 
 (fact "req-archive works on Interpreter instances"
-  (:queue (req-archive (req-with [1 2 3 4]))) => [1 2 3 4 [1 2 3 4]]
+  (:queue (req-archive (make-interpreter [1 2 3 4]))) => [1 2 3 4 [1 2 3 4]]
   )
 
 
@@ -84,7 +84,7 @@
 
 
 (fact "req-empty works on Interpreter instances"
-  (:queue (req-empty (req-with [1 2 3 4]))) => []
+  (:queue (req-empty (make-interpreter [1 2 3 4]))) => []
   )
 
 
@@ -109,7 +109,7 @@
 
 
 (fact "req-next works on Interpreter instances"
-  (:queue (req-next (req-with [1 2 3 4]))) => [2 3 4 1]
+  (:queue (req-next (make-interpreter [1 2 3 4]))) => [2 3 4 1]
   )
 
 
@@ -134,7 +134,7 @@
 
 
 (fact "req-prev works on Interpreter instances"
-  (:queue (req-prev (req-with [1 2 3 4]))) => [4 1 2 3]
+  (:queue (req-prev (make-interpreter [1 2 3 4]))) => [4 1 2 3]
   )
 
 
@@ -160,7 +160,7 @@
 
 
 (fact "req-reverse works on Interpreter instances"
-  (:queue (req-reverse (req-with [1 2 3 4]))) => [4 3 2 1]
+  (:queue (req-reverse (make-interpreter [1 2 3 4]))) => [4 3 2 1]
   )
 
 
@@ -185,5 +185,5 @@
 
 
 (fact "req-swap works on Interpreter instances"
-  (:queue (req-swap (req-with [1 2 3 4]))) => [3 4 1 2]
+  (:queue (req-swap (make-interpreter [1 2 3 4]))) => [3 4 1 2]
   )

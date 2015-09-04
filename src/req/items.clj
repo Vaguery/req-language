@@ -33,7 +33,7 @@
 (defrecord Interpreter [queue])
 
 
-(defn req-with
+(defn make-interpreter
   "creates a new ReQinterpreter with the specified collection in its queue"
   [items] (Interpreter. (new-queue items)))
 

@@ -279,7 +279,7 @@
 
 
 (fact "an arithmetic Qlosure permits quick definition of 2-number ReQ math functions"
-  (let [two-ps (req-with [«-» 1 «-» false 4 8])]
+  (let [two-ps (make-interpreter [«-» 1 «-» false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«-»" "false" "4" "8" "«1-⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4-⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["false" "«4-⦿»" "-7"]
@@ -293,7 +293,7 @@
 
 
 (fact "each _instance_ of a 2-number ReQ math function acquires arguments independently as the interpreter steps forward"
-  (let [two-ps (req-with [«-» 1 «*» false 4 8])]
+  (let [two-ps (make-interpreter [«-» 1 «*» false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«*»" "false" "4" "8" "«1-⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1-⦿»" "false" "«4*⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["false" "«4*⦿»" "-7"]
@@ -312,7 +312,7 @@
 
 
 (fact "these new definitions still implement boolean AND and OR, respectively"
-  (let [two-ps (req-with [«∧» true «∨» true false «∨» true false true])]
+  (let [two-ps (make-interpreter [«∧» true «∨» true false «∨» true false true])]
     (readable-queue (nth-step two-ps 1)) => 
       ["«∨»" "true" "false" "«∨»" "true" "false" "true" "«true∧⦿»"]
     (readable-queue (nth-step two-ps 2)) => 
@@ -326,7 +326,7 @@
 
 
 (fact "the `make-binary-one-type-qlosure` function works for arithmetic too"
-  (let [two-ps (req-with [«-» 1 «*» false 4 8])]
+  (let [two-ps (make-interpreter [«-» 1 «*» false 4 8])]
     (readable-queue (nth-step two-ps 1)) => ["«*»" "false" "4" "8" "«1-⦿»"]
     (readable-queue (nth-step two-ps 2)) => ["8" "«1-⦿»" "false" "«4*⦿»"]
     (readable-queue (nth-step two-ps 3)) => ["false" "«4*⦿»" "-7"]
@@ -340,7 +340,7 @@
 
 
 (fact "`make-binary-one-type-qlosure` works for ad hoc definitions, too"
-  (let [two-ps (req-with [«≤» 1 «∨» false 4 8])]
+  (let [two-ps (make-interpreter [«≤» 1 «∨» false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«∨»" "false" "4" "8" "«1≤⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1≤⦿»" "«false∨⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["«false∨⦿»" "8" "true"]
@@ -356,7 +356,7 @@
 
 
 (fact "a unary Qlosure can be built wit `make-unary-qlosure"
-  (let [negger (req-with [«neg» 1 «neg» false 4 8])]
+  (let [negger (make-interpreter [«neg» 1 «neg» false 4 8])]
     (readable-queue (nth-step negger 1)) =>  ["«neg»" "false" "4" "8" "-1"]
     (readable-queue (nth-step negger 2)) =>  ["8" "-1" "false" "-4"]))
 
@@ -371,7 +371,7 @@
 
 
 (fact "unique ad hoc unary qlosures can also be made and used"
-  (let [negger (req-with [«neg-even?» -1 «neg-even?» «neg-even?» false -4 8])]
+  (let [negger (make-interpreter [«neg-even?» -1 «neg-even?» «neg-even?» false -4 8])]
     (readable-queue (nth-step negger 1)) =>  
       ["«neg-even?»" "«neg-even?»" "false" "-4" "8" "false"]
     (readable-queue (nth-step negger 2)) =>  
@@ -439,7 +439,7 @@
 
 (fact "an Immortal item is not consumed by a Qlosure that uses it as an argument"
   (let [big-old-123 (immortalize 123)
-        stringy (req-with [«doubler» false «-» big-old-123])]
+        stringy (make-interpreter [«doubler» false «-» big-old-123])]
   (readable-queue (nth-step stringy 0)) => ["«doubler»" "false" "«-»" "123⥀"]
   (readable-queue (nth-step stringy 1)) => ["false" "«-»" "123123" "123⥀"]
   (readable-queue (nth-step stringy 2)) => ["«-»" "123123" "123⥀" "false"]
@@ -450,7 +450,7 @@
 
 
 (fact "an Immortal item is not consumed when it consumes another item either"
-  (let [stringy (req-with [(immortalize «doubler») 100 123 456])]
+  (let [stringy (make-interpreter [(immortalize «doubler») 100 123 456])]
   (readable-queue (nth-step stringy 0)) => ["«doubler»⥀" "100" "123" "456"]
   (readable-queue (nth-step stringy 1)) => ["123" "456" "100100" "«doubler»⥀"]
   (readable-queue (nth-step stringy 2)) => ["456" "100100" "123123" "«doubler»⥀"]
@@ -460,7 +460,7 @@
 
 (fact "an Immortal item is not consumed when it consumes another Immortal item either"
   (let [big-old-123 (immortalize 123)
-        stringy (req-with [(immortalize «doubler») 100 big-old-123 456])]
+        stringy (make-interpreter [(immortalize «doubler») 100 big-old-123 456])]
   (readable-queue (nth-step stringy 0)) => ["«doubler»⥀" "100" "123⥀" "456"]
   (readable-queue (nth-step stringy 1)) => ["123⥀" "456" "100100" "«doubler»⥀"]
   (readable-queue (nth-step stringy 2)) => ["456" "100100" "123123" "«doubler»⥀" "123⥀"]
@@ -523,7 +523,7 @@
 
 (fact "a Channel item is not consumed by a Qlosure that uses its value as an argument"
     (let [channel-x (->Channel "x" 123)
-          stringy (req-with [«doubler» false «-» channel-x])]
+          stringy (make-interpreter [«doubler» false «-» channel-x])]
     (readable-queue (nth-step stringy 0)) => ["«doubler»" "false" "«-»" "⬍x|123⬍"]
     (readable-queue (nth-step stringy 1)) => ["false" "«-»" "123123" "⬍x|123⬍"]
     (readable-queue (nth-step stringy 2)) => ["«-»" "123123" "⬍x|123⬍" "false"]
@@ -536,7 +536,7 @@
 
 
 (fact "a Channel item is not consumed when it consumes another item either"
-  (let [stringy (req-with [(->Channel "x" «doubler») 100 123 456])]
+  (let [stringy (make-interpreter [(->Channel "x" «doubler») 100 123 456])]
   (readable-queue (nth-step stringy 0)) => ["⬍x|«doubler»⬍" "100" "123" "456"]
   ;; ...
   (readable-queue (nth-step stringy 4)) => ["123123" "456456" "⬍x|«doubler»⬍" "100100"]))
@@ -544,7 +544,7 @@
 
 (fact "a Channel item is not consumed when it consumes another Channel item either"
   (let [big-old-123 (->Channel "x" 123)
-        stringy (req-with [(->Channel "y" «doubler») 100 big-old-123 456])]
+        stringy (make-interpreter [(->Channel "y" «doubler») 100 big-old-123 456])]
   (readable-queue (nth-step stringy 0)) => ["⬍y|«doubler»⬍" "100" "⬍x|123⬍" "456"]
   (readable-queue (nth-step stringy 22)) =>["100100" "123123" "456456" "123123"
                                             "123123" "123123" "123123" "⬍y|«doubler»⬍"
@@ -554,9 +554,9 @@
 
 
 (fact "an Interpreter is a kind of ::wrapped-collection"
-  (type (req-with [1 2 3])) => req.items.Interpreter
+  (type (make-interpreter [1 2 3])) => req.items.Interpreter
   (isa? req req.items.Interpreter :req.items/wrapped-collection) => true
-  (isa? req (type (req-with [1 2 3])) :req.items/wrapped-collection) => true)
+  (isa? req (type (make-interpreter [1 2 3])) :req.items/wrapped-collection) => true)
 
 
 ;; ⬍SELF⬍ (the "self channel", but not a Channel)
@@ -598,6 +598,6 @@
 (fact "the :function of an Imperative can be applied (but don't do this)"
   (fn? (:function (->Imperative :e req-reverse))) => true
   ((:function (->Imperative :e req-reverse)) [1 2 3]) => [3 2 1]
-  (:queue ((:function (->Imperative :e req-reverse)) (req-with [1 2 3]))) =>
+  (:queue ((:function (->Imperative :e req-reverse)) (make-interpreter [1 2 3]))) =>
     [3 2 1]
   )

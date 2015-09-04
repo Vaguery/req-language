@@ -57,20 +57,20 @@
 
 ;; interpreter
 
-(fact "calling req-with with a vector of items puts those onto the queue"
-  (:queue (req-with [2 5 8])) => (just [2 5 8])
-  (:queue (req-with [2 [3] false])) => (just [2 [3] false])
+(fact "calling make-interpreter with a vector of items puts those onto the queue"
+  (:queue (make-interpreter [2 5 8])) => (just [2 5 8])
+  (:queue (make-interpreter [2 [3] false])) => (just [2 [3] false])
   )
 
 
 ;; step: literals
 
 (fact "calling step on an interpreter containing only literals will cycle them"
-  (:queue (step (req-with [false 1.2 3]))) => [1.2 3 false]
+  (:queue (step (make-interpreter [false 1.2 3]))) => [1.2 3 false]
   )
 
 (fact "the req-steps function produces a sequence of future steps"
-  (let [literal (req-with [false 1.2 3])]
+  (let [literal (make-interpreter [false 1.2 3])]
     (:queue (nth-step literal 1)) => [1.2 3 false]
     (:queue (nth-step literal 2)) => [3 false 1.2]
   ))
@@ -113,18 +113,18 @@
 
 
 (fact "a ReQ interpreter with a Qlosure with no targets just keeps it"
-  (readable-queue (step (req-with [p false]))) => ["false", "«+»"]
-  (readable-queue (step (req-with [p]))) => ["«+»"])
+  (readable-queue (step (make-interpreter [p false]))) => ["false", "«+»"]
+  (readable-queue (step (make-interpreter [p]))) => ["«+»"])
 
 
 (fact "a Qlosure will consume the nearest argument and produce an intermediate"
-  (readable-queue (step (req-with [p 1 2 4 8]))) => ["2" "4" "8" "«1+⦿»"]
-  (:queue (step (step (req-with [p 1 2 4 8])))) => [4 8 3]
-  (:queue (step (step (step (req-with [p 1 2 4 8]))))) => [8 3 4])
+  (readable-queue (step (make-interpreter [p 1 2 4 8]))) => ["2" "4" "8" "«1+⦿»"]
+  (:queue (step (step (make-interpreter [p 1 2 4 8])))) => [4 8 3]
+  (:queue (step (step (step (make-interpreter [p 1 2 4 8]))))) => [8 3 4])
 
 
 (fact "two Qlosure items will consume arguments according to the queue dynamics"
-  (let [two-ps (req-with [p 1 p 2 4 8])]
+  (let [two-ps (make-interpreter [p 1 p 2 4 8])]
     (str (last (:queue (step two-ps)))) => "«1+⦿»"
     (readable-queue (nth-step two-ps 1)) =>  ["«+»" "2" "4" "8" "«1+⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["4" "8" "«1+⦿»" "«2+⦿»"]
@@ -133,7 +133,7 @@
 
 
 (fact "Qlosure items will still skip (and requeue) unwanted items as needed"
-  (let [two-ps (req-with [p 1 p false 4 8])]
+  (let [two-ps (make-interpreter [p 1 p false 4 8])]
     (readable-queue (nth-step two-ps 1)) =>  ["«+»" "false" "4" "8" "«1+⦿»"]
     (readable-queue (nth-step two-ps 2)) =>  ["8" "«1+⦿»" "false" "«4+⦿»"]
     (readable-queue (nth-step two-ps 3)) =>  ["false" "«4+⦿»" "9"]
@@ -146,7 +146,7 @@
 ;; but in the long term, Qlosures should be able to act as viable arguments
 ;; for other Qlosures, if their :type matches
 (fact "stepping through with two Qlosures which might interact (some day) on the interpreter"
-  (let [two-ps (req-with [p p 1 2 4 8])]
+  (let [two-ps (make-interpreter [p p 1 2 4 8])]
     (readable-queue (step two-ps)) => ["2" "4" "8" "«+»" "«1+⦿»"]
     (readable-queue (step (step two-ps))) => ["«1+⦿»" "4" "8" "«2+⦿»"]
     (readable-queue (step (step (step two-ps)))) => ["8" "«2+⦿»" "5"]
@@ -163,7 +163,7 @@
 
 
 (fact "multiple return values (returned as a Clojure list) are pushed onto the queue"
-  (let [tripler (req-with [«3x» -1 «3x» «3x» false -4 8])]
+  (let [tripler (make-interpreter [«3x» -1 «3x» «3x» false -4 8])]
     (readable-queue (nth-step tripler 1)) =>
       ["«3x»" "«3x»" "false" "-4" "8" "-1" "-1" "-1"]
     (readable-queue (nth-step tripler 2)) =>
@@ -190,7 +190,7 @@
 
 (fact "for a collection result to be handled correctly by the ReQ interpreter,
   the :transition function should wrap it in a list"
-  (let [tripler (req-with [«3xVec» -1  false «3xVec» -4 «3xVec» 8])]
+  (let [tripler (make-interpreter [«3xVec» -1  false «3xVec» -4 «3xVec» 8])]
     (readable-queue (step tripler)) =>
       ["false" "«3xVec»" "-4" "«3xVec»" "8" "[-1 -1 -1]"]
     (readable-queue (nth-step tripler 2)) =>  
@@ -216,8 +216,8 @@
 
 
 (fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
-  (readable-queue (req-with [silly false])) => ["«29»" "false"]
-  (readable-queue (step (req-with [silly false]))) => ["false" "29"])
+  (readable-queue (make-interpreter [silly false])) => ["«29»" "false"]
+  (readable-queue (step (make-interpreter [silly false]))) => ["false" "29"])
 
 
 ;; Nullary "seeds"
@@ -229,7 +229,7 @@
 
 
 (fact "a Nullary produces its result (which is pushed) when it is in the hot seat"
-  (let [eighty (req-with [eights false])]
+  (let [eighty (make-interpreter [eights false])]
     (readable-queue eighty) => ["«8s»" "false"]
     (readable-queue (step eighty)) => ["false" "«8s»" "8"]
     (readable-queue (nth-step eighty 2)) => ["«8s»" "8" "false"]
@@ -245,10 +245,10 @@
 
 
 (fact "a Nullary timer advances at every execution, and eventually becomes its end value"
-  (readable-queue (req-with [c false])) => ["«timer:2-4»" "false"]
-  (readable-queue (step (req-with [c false]))) => ["false" "«timer:3-4»"]
-  (readable-queue (step (step (req-with [c false])))) => ["«timer:3-4»" "false"]
-  (readable-queue (step (step (step (req-with [c false]))))) => ["false" "4"])
+  (readable-queue (make-interpreter [c false])) => ["«timer:2-4»" "false"]
+  (readable-queue (step (make-interpreter [c false]))) => ["false" "«timer:3-4»"]
+  (readable-queue (step (step (make-interpreter [c false])))) => ["«timer:3-4»" "false"]
+  (readable-queue (step (step (step (make-interpreter [c false]))))) => ["false" "4"])
 
 
 (def c
@@ -257,7 +257,7 @@
 
 
 (fact "a Nullary timer with a payload emits its payload every cycle, then dissolves"
-  (let [timey (req-with [c false])]
+  (let [timey (make-interpreter [c false])]
     (readable-queue (nth-step timey 0)) => ["«timer:2-11»" "false"]
     (readable-queue (nth-step timey 1)) => ["false" "«timer:3-11»" ":foo"]
     (readable-queue (nth-step timey 2)) => ["«timer:3-11»" ":foo" "false"]
@@ -281,7 +281,7 @@
 
 
 (fact "a Nullary looper cycles its (sequence) payload, emitting the top item each step"
-  (let [her-number (req-with [jenny false])]
+  (let [her-number (make-interpreter [jenny false])]
     (readable-queue (nth-step her-number 0 )) => ["«[9 0 3 5 7 6 8]»" "false"]
     (readable-queue (nth-step her-number 1 )) => ["false" "«[0 3 5 7 6 8 9]»" "9"]
     ;; ... much later ...
