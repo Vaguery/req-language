@@ -115,7 +115,14 @@
   (assoc-in interpreter [:channels channel-name] new-value))
 
 
+(defn empty-channel
+  "sets the value of a named channel in an existing Interpreter to nil"
+  [interpreter channel-name]
+  (assoc-in interpreter [:channels channel-name] nil))
+
+
 ;; SELF channel
+
 
 (defrecord Self [])
 
