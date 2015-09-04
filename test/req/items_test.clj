@@ -3,7 +3,8 @@
         [req.core]
         [req.interpreter]
         [req.items]
-        [req.instructions.bool]))
+        [req.instructions.bool]
+        [req.instructions.collections]))
 
 
 ;; basic ReQ types
@@ -572,3 +573,31 @@
 
 (fact "⬍SELF⬍ is immortal"
   (immortal-item? ⬍SELF⬍) => true)
+
+
+;; Imperative items
+
+
+(fact "an Imperative appears to have no wants (when asked)"
+  (:wants (->Imperative :foo #(%))) => nil
+  (req-wants (->Imperative :foo #(%)) 812) => false
+  )
+
+
+(fact "an Imperative is a kind of Nullary"
+  (type (->Imperative :foo #(%))) => req.items.Imperative
+  (isa? req (type (->Imperative :foo #(%))) :req.items/nullary) => true
+  )
+
+
+(fact "the `imperative?` function detects imperative items"
+  (imperative? 88) => false
+  (imperative? (->Imperative :e #(%)))=> true )
+
+
+(fact "the :function of an Imperative can be applied (but don't do this)"
+  (fn? (:function (->Imperative :e req-reverse))) => true
+  ((:function (->Imperative :e req-reverse)) [1 2 3]) => [3 2 1]
+  (:queue ((:function (->Imperative :e req-reverse)) (req-with [1 2 3]))) =>
+    [3 2 1]
+  )

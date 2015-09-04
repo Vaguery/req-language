@@ -13,6 +13,8 @@
         tail (pop (:queue req))
         popped-state (req-with tail)]
     (cond
+      (imperative? hot-seat)
+        ((:function hot-seat) popped-state)
       (nullary? hot-seat)
         (req-with (queue-from-items tail ((:function hot-seat))))
       (seq (all-interacting-items hot-seat tail))

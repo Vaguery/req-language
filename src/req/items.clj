@@ -138,6 +138,18 @@
   (->Nullary token function))
 
 
+;; Imperative items 
+
+(defrecord Imperative [token function]
+    Object
+    (toString [_] (str "‡" token "‡")))
+
+
+(defn imperative?
+  "returns true if the argument is a req.items.Imperative"
+  [item]
+  (instance? req.items.Imperative item))
+
 ;; Qlosure objects
 
 
@@ -256,7 +268,9 @@
               (derive ::nullary ::thing)
               (derive ::qlosure ::thing)
               (derive ::channel ::thing)
+              (derive ::imperative ::nullary)
               (derive req.items.Interpreter ::interpreter)
+              (derive req.items.Imperative ::imperative)
               (derive req.items.Self ::interpreter)
               (derive ::interpreter ::wrapped-collection)
               (derive req.items.Nullary ::nullary)

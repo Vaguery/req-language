@@ -100,3 +100,10 @@
               rest (pop (pop coll))]
           (conj rest a b))
       :else coll))
+
+
+; req-shuffle?
+; req-sort?
+; req-filter?
+; req-flatten?
+; etc
