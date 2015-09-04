@@ -30,12 +30,13 @@
 ;; Interpreter items
 
 
-(defrecord Interpreter [queue])
+(defrecord Interpreter [queue channels])
 
 
 (defn make-interpreter
   "creates a new ReQinterpreter with the specified collection in its queue"
-  [items] (Interpreter. (new-queue items)))
+  [items & {:keys [channels] :or {channels {}}}]
+  (->Interpreter (new-queue items) channels))
 
 
 (defn readable-queue

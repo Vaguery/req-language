@@ -17,9 +17,9 @@
   (boolean? nil) => false
   (boolean? (= 7 7)) => true)
 
+
 (fact "queue? returns true if the item is specifically a clojure.lang.PersistentQueue"
-  (queue? (new-queue)) => true
-  )
+  (queue? (new-queue)) => true)
 
 
 (fact "the req-type hierarchy works"
