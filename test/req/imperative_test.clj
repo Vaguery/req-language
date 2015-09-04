@@ -21,5 +21,12 @@
         r (req-with [dammit-archer 1 2 3 4 5])]
     (readable-queue r) => ["‡archive‡" "1" "2" "3" "4" "5"]
     (:queue (step r)) => [1 2 3 4 5 [1 2 3 4 5]]
-    (type (last (:queue (step r)))) => clojure.lang.PersistentQueue)
+    (type (last (:queue (step r)))) => clojure.lang.PersistentQueue))
+
+
+(fact "there is no built-in checking, at the moment, whether it's a good idea!"
+    (let [do-not-do-this (->Imperative "+" (fn [x] (+ x)))
+        r (req-with [do-not-do-this 1 2 3 4 5])]
+    (readable-queue r) => ["‡+‡" "1" "2" "3" "4" "5"]
+    (:queue (step r)) => (throws Exception))
   )
