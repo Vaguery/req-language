@@ -6,7 +6,9 @@ In other words, it's _not for people_. My design goals are simple, even if the r
 
 The `ReQ` interpreter queue is loaded with the initial program tokens, and in each processing cycle the interpreter:
 
-1. pops the next item from the queue, placing it in the "hot seat"
+1. pop the next item from the queue, placing it in the "hot seat"
+2. check to see whether the item in the hot seat is an `Imperative`, and if so it applies the function specified to the running Interpreter itself (`GOTO 1`)
+3. check to see if the item in the hot seat is a `Nullary`, and if so append the results of calling its function to the queue (`GOTO 1`)
 2. decide whether the item in the hot seat _wants_ the new top item on the queue; if it does want that item as an argument, it _consumes_ it, immediately pushing the result(s) to the tail of the queue
 3. if the item in the hot seat doesn't want the top item, decide whether it _is wanted by_ the top item on the queue; if it is wanted, then that item _consumes_ the one in the hot seat, immediately pushing the result(s) to the tail of the queue
 4. if neither of the item in the hot seat and the top queue item _wants_ the other, pop the top item and send it to the tail of the queue, leaving the item in the hot seat, and `GOTO 2 or 5`
@@ -15,7 +17,7 @@ The `ReQ` interpreter queue is loaded with the initial program tokens, and in ea
 
 That's it.
 
-One `ReQ` item "wants" another as an _argument_. Functions like `«+»` or `«dup»` "want" any argument they could potentially act on in any of their polymorphic meanings; for example, `«+»` can add numbers, points, vectors or matrices (of the right size), or it can concatenate strings or collections, or produce the union of two sets. The "pure" function therefore _wants_ all those types of item as a potential argument, but when it _consumes_ an argument it becomes a new _partially applied function_ (a `Qlosure`) with a new set of "wants". If a particular `«+»` item consumes an `81`, the resulting `Qlosure` item will want numbers only---not strings or sets or songs. If instead `«+»` consumes a vector `[3.2 9.1]`, the resulting `Qlosure` item can "want" several things, in a preferred order: it can do "vector addition" if it finds another 2-element numerical vector first, or "concatenation" if it finds some other collection (of any sort) first.
+The sense by which one `ReQ` item "wants" another as an _argument_. Functions like `«+»` or `«dup»` "want" any argument they could potentially act on in any of their polymorphic meanings; for example, `«+»` can add numbers, points, vectors or matrices (of the right size), or it can concatenate strings or collections, or produce the union of two sets. The "pure" function therefore _wants_ all those types of item as a potential argument, but when it _consumes_ an argument it becomes a new _partially applied function_ (a `Qlosure`) with a new set of "wants". If a particular `«+»` item consumes an `81`, the resulting `Qlosure` item will want numbers only---not strings or sets or songs. If instead `«+»` consumes a vector `[3.2 9.1]`, the resulting `Qlosure` item can "want" several things, in a preferred order: it can do "vector addition" if it finds another 2-element numerical vector first, or "concatenation" if it finds some other collection (of any sort) first.
 
 When the last argument of a `Qlosure` is assigned, the result is produced. So to add `17+2` with `«+»`, the process involves _four_ distinct `ReQ` items going through two distinct stages:
 
@@ -32,7 +34,7 @@ A few important observations:
 
 ## Status
 
-Close. More news soon.
+Closer.
 
 ### Done
 
@@ -42,11 +44,14 @@ Close. More news soon.
 - `Immortal` items: wrapper around any standard `ReQ` item, protecting it from being consumed when used as an argument
 - `Channel` items: `Immortal` items which can be written and read by "the outside world"
 - convenience functions for producing problem-specific `ReQ` items
+- the `⬍SELF⬍` item, which is a special `Immortal` item that acts as a proxy for the running `Interpreter` state as an argument
+- `Imperative` items: `Qlosure` items which affect the running `Interpreter` iself
+- some functions that act on collections and wrapped-collections (e.g. `Interpreter` instances)
 
 ### Active development
 
-- `self|` channel for using imperative instructions
-- channel list in interpreter record
+- writing to and taking from `Channel` items
+- channel list explicitly stored in the interpreter record
 - core instruction and type set:
   - numbers
   - booleans
@@ -55,7 +60,6 @@ Close. More news soon.
   - sets
   - control structures
   - higher-order functions
-  - imperatives (affecting interpreter instances and their queues)
 - instruction definitions stored in interpreter record
 - `Gatherer` items: `Qlosure` items that build collection types
 - convenience methods for quickly defining mixed-type `Qlosure` items
