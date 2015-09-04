@@ -109,6 +109,12 @@
   (and (channel? item) (nil? (:value item))))
 
 
+(defn set-channel
+  "sets the value of a named channel in an existing Interpreter to a new value"
+  [interpreter channel-name new-value]
+  (assoc-in interpreter [:channels channel-name] new-value))
+
+
 ;; SELF channel
 
 (defrecord Self [])

@@ -4,6 +4,8 @@
      '[req.items])
 
 
+;; raw materials: functions called "behind the scenes"
+
 (defn req-archive
   "conj's a copy of the entire collection onto itself"
   [coll]

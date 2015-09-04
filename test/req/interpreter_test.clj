@@ -73,6 +73,22 @@
   (:channels (make-interpreter [1 2] :channels {"x" 8 "y" nil})) => {"x" 8, "y" nil})
 
 
+;; changing channel values
+
+
+(fact "calling `set-channel` changes the value of an existing channel in an Interpreter"
+  (let [exy (make-interpreter [1 2] :channels {"x" 8 "y" nil})]
+    (get-in (set-channel exy "x" 17) [:channels "x"]) => 17
+    (get-in (set-channel exy "y" 3) [:channels "y"]) => 3
+    ))
+
+(fact "calling `set-channel` creates and sets a new channel in an Interpreter"
+  (let [exy (make-interpreter [1 2] :channels {"x" 8 "y" nil})]
+    (get-in (set-channel exy "z" false) [:channels "z"]) => false
+    ))
+
+
+
 ;; step: literals
 
 (fact "calling step on an interpreter containing only literals will cycle them"
