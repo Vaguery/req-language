@@ -1,3 +1,7 @@
+# DEPRECATED
+
+A new version, with a substantially different memory model and underlying data structure(s), is being developed.
+
 # ReQ (first version)
 
 `ReQ`---pronounced "re-queue" or "wreck", depending on how long you've stared at it---is a new language intended for genetic programming applications. It's a queue-based (as opposed to stack-based) language, with a strong and extensible type system, tight integration to Clojure (in which it's written), polymorphic monadic functional style, and surprisingly promiscuous computational dynamics.
